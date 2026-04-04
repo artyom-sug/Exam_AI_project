@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Uploads
+backend/uploads/lectures/*
+backend/uploads/temp_audio/*
+!backend/uploads/lectures/.gitkeep
+!backend/uploads/temp_audio/.gitkeep
+
+# Environment variables
+.env
+.env.local
+
+# Ollama
+ollama_models/
+
+# Frontend node (если вдруг понадобится)
+node_modules/
+npm-debug.log*
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Secrets
+*.key
+*.pem
+config.local.py
