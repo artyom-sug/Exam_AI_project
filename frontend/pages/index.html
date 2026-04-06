@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в систему</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container" id="container">
+        
+        <!-- Контейнер с формами -->
+        <div class="forms-container">
+            
+            <!-- Форма СТУДЕНТА -->
+            <div class="form-panel signin-panel">
+                <form id="signinForm">
+                    <h3>Студент</h3>
+                    <div class="subtitle">Войдите в систему для прохождения экзаменов</div>
+                    
+                    <input type="text" id="studentGroup" placeholder="ПМИ-б-о-241" required>
+                    <div class="error-message" id="groupError"></div>
+                    
+                    <input type="text" id="studentFullname" placeholder="ФИО" required>
+                    <div class="error-message" id="fullnameError"></div>
+                    
+                    <button type="submit" class="btn">Войти</button>
+                </form>
+            </div>
+
+            <!-- Форма ПРЕПОДАВАТЕЛЯ -->
+            <div class="form-panel signup-panel">
+                <form id="signupForm">
+                    <h3>Преподаватель</h3>
+                    <div class="subtitle">Войдите для создания экзаменов и проверки работ</div>
+                    
+                    <input type="text" id="teacherLogin" placeholder="Логин" required>
+                    <div class="error-message" id="LoginError"></div>
+                    
+                    <input type="password" id="teacherPassword" placeholder="Пароль" required>
+                    <div class="error-message" id="PasswordError"></div>
+
+                    <button type="submit" class="btn">Войти</button>
+                    <button type="button" class="mobile-switch" id="mobileSwitchToSignin">← Назад</button>
+                </form>
+            </div>
+
+        </div>
+
+        <!-- Оверлей с кнопками переключения -->
+        <div class="overlay-container">
+            <div class="overlay">
+                <div class="overlay-panel overlay-left">
+                    <h3>Здравствуйте, Преподаватель!</h3>
+                    <p>Войдите в панель управления экзаменами</p>
+                    <button class="btn btn-transparent" id="signinBtn">ВОЙТИ КАК СТУДЕНТ</button>
+                </div>
+                <div class="overlay-panel overlay-right">
+                    <h3>Здравствуйте, Студент!</h3>
+                    <p>Войдите в систему, чтобы продолжить экзаменационную сессию</p>
+                    <button class="btn btn-transparent" id="signupBtn">ВОЙТИ КАК ПРЕПОДАВАТЕЛЬ</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
