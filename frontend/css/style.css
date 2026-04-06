@@ -1,0 +1,311 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    background: linear-gradient(to bottom right, #87dbfd, #d5ceeb);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.container {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 900px;
+    min-height: 550px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ========== КОНТЕЙНЕР ФОРМ ========== */
+.forms-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    transition: transform 0.6s ease-in-out;
+    z-index: 2;
+    display: flex;
+}
+
+/* ========== ПАНЕЛИ ФОРМ ========== */
+.form-panel {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.4s ease;
+}
+
+/* Форма студента (видима по умолчанию) */
+.signin-panel {
+    left: 0;
+    opacity: 1;
+    background: white;
+}
+
+/* Форма преподавателя (скрыта по умолчанию) */
+.signup-panel {
+    left: 100%;
+    opacity: 0;
+    background: white;
+    pointer-events: none;
+}
+
+/* Когда активна правая панель - показываем форму преподавателя */
+.container.right-panel-active .signin-panel {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.container.right-panel-active .signup-panel {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* ========== ФОРМЫ ========== */
+form {
+    background: white;
+    padding: 50px;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+form h3 {
+    font-size: 28px;
+    margin-bottom: 10px;
+    color: #333;
+    text-align: center;
+}
+
+.subtitle {
+    color: #777;
+    font-size: 13px;
+    margin-bottom: 30px;
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.5;
+}
+
+input {
+    width: 100%;
+    padding: 12px 15px;
+    margin: 8px 0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f9f9f9;
+    outline: none;
+    transition: 0.3s;
+    font-size: 14px;
+}
+
+input:focus {
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn {
+    background: linear-gradient(to bottom right, #87dbfd, #d5ceeb);
+    color: white;
+    padding: 12px 45px;
+    border: none;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: 0.3s;
+    font-size: 14px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* ========== ОВЕРЛЕЙ ========== */
+.overlay-container {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 50%;
+    height: 100%;
+    overflow: hidden;
+    transition: transform 0.6s ease-in-out;
+    z-index: 100;
+}
+
+.container.right-panel-active .overlay-container {
+    transform: translateX(-100%);
+}
+
+.overlay {
+    background: linear-gradient(to bottom right, #d5ceeb, #87dbfd);
+    color: white;
+    position: relative;
+    left: -100%;
+    height: 100%;
+    width: 200%;
+    transform: translateX(0);
+    transition: transform 0.6s ease-in-out;
+}
+
+.container.right-panel-active .overlay {
+    transform: translateX(50%);
+}
+
+.overlay-panel {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    top: 0;
+    height: 100%;
+    width: 50%;
+    padding: 20px;
+    transition: transform 0.6s ease-in-out;
+}
+
+.overlay-left {
+    transform: translateX(-20%);
+}
+
+.container.right-panel-active .overlay-left {
+    transform: translateX(0);
+}
+
+.overlay-right {
+    right: 0;
+    transform: translateX(0);
+}
+
+.container.right-panel-active .overlay-right {
+    transform: translateX(20%);
+}
+
+.overlay-panel h3 {
+    font-size: 26px;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.overlay-panel p {
+    font-size: 14px;
+    margin-bottom: 30px;
+    padding: 0 30px;
+    line-height: 1.6;
+}
+
+.btn-transparent {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+    padding: 10px 35px;
+    border-radius: 30px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-transparent:hover {
+    background: white;
+    color: #667eea;
+    transform: translateY(-2px);
+}
+
+/* ========== ОШИБКИ ========== */
+.error-message {
+    color: #e74c3c;
+    font-size: 11px;
+    margin-top: 5px;
+    min-height: 16px;
+    width: 100%;
+    text-align: left;
+    padding-left: 5px;
+    display: none;
+}
+
+.error-message.show {
+    display: block;
+    animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* ========== МОБИЛЬНАЯ ВЕРСИЯ ========== */
+.mobile-switch {
+    display: none;
+    margin-top: 15px;
+    background: transparent;
+    border: 2px solid #667eea;
+    color: #667eea;
+    padding: 10px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.3s;
+}
+
+.mobile-switch:hover {
+    background: #667eea;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .container {
+        min-height: auto;
+        border-radius: 15px;
+    }
+    
+    .forms-container {
+        width: 100%;
+        position: relative;
+        left: 0;
+        transform: none !important;
+    }
+    
+    .form-panel {
+        position: relative;
+        left: 0 !important;
+        width: 100%;
+    }
+    
+    .signin-panel,
+    .signup-panel {
+        display: none;
+    }
+    
+    .signin-panel.active,
+    .signup-panel.active {
+        display: flex;
+    }
+    
+    .overlay-container {
+        display: none;
+    }
+    
+    .mobile-switch {
+        display: inline-block;
+    }
+}
