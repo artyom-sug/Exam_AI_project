@@ -15,6 +15,7 @@ from .database import engine, get_db, Base
 from . import models, schemas, auth
 from .config import LECTURES_DIR
 from .crypto import get_password_hash, verify_password
+from .whisper_service import whisper_service
 
 Base.metadata.create_all(bind=engine)
 
@@ -405,3 +406,33 @@ async def process_lecture_embeddings(
     embeddings_service.process_lecture(db, lecture_id, lecture.text_content)
     
     return {"message": "Lecture processed successfully", "chunks_created": True}
+
+@app.post("/api/transcribe")
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    import tempfile
+    import uuid
+    
+    temp_path = TEMP_AUDIO_DIR / f"{uuid.uuid4()}_{file.filename}"
+    
+    try:
+        content = await file.read()
+        with open(temp_path, "wb") as f:
+            f.write(content)
+        
+        text = whisper_service.transcribe(str(temp_path))
+        
+        if not text:
+            raise HTTPException(status_code=400, detail="Не удалось распознать речь")
+        
+        return {"text": text, "success": True}
+        
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()

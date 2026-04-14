@@ -19,6 +19,10 @@ PyMuPDF==1.24.14
 requests==2.32.3
 numpy==1.26.4
 
+# Speech Recognition 
+faster-whisper==1.0.3
+ffmpeg-python==0.2.0
+
 # Utilities
 pydantic==2.10.4
 pydantic-settings==2.7.0
