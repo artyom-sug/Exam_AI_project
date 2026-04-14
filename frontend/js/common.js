@@ -1,8 +1,6 @@
-// ========== КОНФИГУРАЦИЯ ==========
 const API_BASE_URL = 'http://localhost:8000/api';
-const USE_MOCK = false;  // Переключите на true если бэкенд не запущен
+const USE_MOCK = false;  
 
-// Мок-данные для тестирования
 const MOCK_API = {
     async studentValidate(fio, key) {
         await delay(800);
@@ -32,41 +30,33 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ========== ЭЛЕМЕНТЫ ==========
 const container = document.getElementById('container');
 const signinBtn = document.getElementById('signinBtn');
 const signupBtn = document.getElementById('signupBtn');
 const mobileSwitch = document.getElementById('mobileSwitchToSignin');
 
-// ========== ПЕРЕКЛЮЧЕНИЕ ФОРМ ==========
-
-// Переключение на форму преподавателя
 signupBtn?.addEventListener('click', () => {
     container.classList.add('right-panel-active');
     document.querySelector('.signin-panel')?.classList.remove('active');
     document.querySelector('.signup-panel')?.classList.add('active');
 });
 
-// Переключение на форму студента
 signinBtn?.addEventListener('click', () => {
     container.classList.remove('right-panel-active');
     document.querySelector('.signup-panel')?.classList.remove('active');
     document.querySelector('.signin-panel')?.classList.add('active');
 });
 
-// Мобильное переключение
 mobileSwitch?.addEventListener('click', () => {
     container.classList.remove('right-panel-active');
     document.querySelector('.signup-panel')?.classList.remove('active');
     document.querySelector('.signin-panel')?.classList.add('active');
 });
 
-// Инициализация - показываем форму студента по умолчанию
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.signin-panel')?.classList.add('active');
 });
 
-// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function showError(id, msg) {
     const el = document.getElementById(id);
     if (el) {
@@ -93,7 +83,6 @@ function setLoading(btn, isLoading) {
     }
 }
 
-// ========== ФОРМА СТУДЕНТА ==========
 document.getElementById('signinForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors(e.target);
@@ -118,7 +107,6 @@ document.getElementById('signinForm')?.addEventListener('submit', async (e) => {
 
     if (hasError) return;
     
-    // Отправляем запрос
     setLoading(submitBtn, true);
     
     try {
@@ -141,14 +129,12 @@ document.getElementById('signinForm')?.addEventListener('submit', async (e) => {
             data = await response.json();
         }
         
-        // Сохраняем сессию
         localStorage.setItem('examSession', JSON.stringify({
             sessionId: data.session_id,
             groupId: data.group_id,
             fio: data.fio
         }));
         
-        // Переходим на страницу экзамена
         window.location.href = '/pages/exam.html';
         
     } catch (error) {
@@ -159,7 +145,6 @@ document.getElementById('signinForm')?.addEventListener('submit', async (e) => {
     }
 });
 
-// ========== ФОРМА ПРЕПОДАВАТЕЛЯ ==========
 document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors(e.target);
@@ -187,7 +172,6 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
 
     if (hasError) return;
     
-    // Отправляем запрос
     setLoading(submitBtn, true);
     
     try {
@@ -210,11 +194,9 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
             data = await response.json();
         }
         
-        // Сохраняем токен
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('teacherLogin', login);
         
-        // Переходим в панель преподавателя
         window.location.href = '/pages/teacher.html';
         
     } catch (error) {
@@ -225,7 +207,6 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
     }
 });
 
-// Убирать ошибку при вводе
 document.querySelectorAll('input').forEach(input => {
     input.addEventListener('input', function() {
         const parent = this.parentElement;
@@ -236,7 +217,6 @@ document.querySelectorAll('input').forEach(input => {
     });
 });
 
-// Автоматическое переключение по URL параметрам
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('role') === 'teacher') {
     setTimeout(() => {
