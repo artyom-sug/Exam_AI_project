@@ -133,14 +133,9 @@ input:focus {
     font-size: 14px;
 }
 
-.btn:hover:not(:disabled) {
+.btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-}
-
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
 }
 
 /* ========== ОВЕРЛЕЙ ========== */
@@ -256,31 +251,6 @@ input:focus {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-5px); }
     75% { transform: translateX(5px); }
-}
-
-/* ========== ЗАГРУЗКА ========== */
-.btn.loading {
-    position: relative;
-    color: transparent;
-}
-
-.btn.loading::after {
-    content: '';
-    position: absolute;
-    width: 20px;
-    height: 20px;
-    top: 50%;
-    left: 50%;
-    margin-left: -10px;
-    margin-top: -10px;
-    border: 2px solid white;
-    border-radius: 50%;
-    border-top-color: transparent;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 /* ========== МОБИЛЬНАЯ ВЕРСИЯ ========== */

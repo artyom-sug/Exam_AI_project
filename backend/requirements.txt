@@ -6,18 +6,18 @@ python-multipart==0.0.20
 # Database
 sqlalchemy==2.0.36
 alembic==1.14.1
-psycopg2-binary==2.9.10  
 
 # Auth
 python-jose[cryptography]==3.3.0
-passlib==1.7.4  
-bcrypt==4.1.2   
+passlib[bcrypt]==1.7.4
 python-dotenv==1.0.1
 
 # AI/ML
 sentence-transformers==3.3.1
+torch==2.5.1 
 PyMuPDF==1.24.14
 requests==2.32.3
+numpy==1.26.4
 
 # Utilities
 pydantic==2.10.4
