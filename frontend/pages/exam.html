@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Экзамен | Устойчивое развитие</title>
+  <link rel="stylesheet" href="exam.css">
+</head>
+<body>
+<div class="exam-container">
+  <!-- шапка: заголовок + таймер -->
+  <div class="exam-header">
+    <div class="exam-title">
+      <h1>📘 Экзамен</h1>
+    </div>
+    <div class="timer">
+      <span>⏱ Осталось времени:</span>
+      <span id="timerDisplay">30:00</span>
+    </div>
+  </div>
+
+  <!-- карточка вопроса (динамическая) -->
+  <div class="question-card" id="questionCard">
+    <div class="question-text" id="questionText">
+      ❓ <strong>Вопрос:</strong><br><br>
+      Загрузка вопроса...
+    </div>
+  </div>
+
+  <!-- карточка ответа -->
+  <div class="answer-card">
+    <div class="answer-label">✍️ Ваш ответ:</div>
+    <textarea id="answerInput" placeholder="Введите ответ или используйте голосовой ввод..."></textarea>
+
+    <!-- реальный голосовой ввод -->
+    <div class="voice-note">
+      <span>🎙️</span>
+      <button class="voice-btn" id="voiceBtn">🎤 Голосовой ввод</button>
+      <span id="voiceStatus" class="voice-status"></span>
+    </div>
+  </div>
+
+  <!-- кнопки действий -->
+  <div class="actions">
+    <button class="btn btn-secondary" id="finishEarlyBtn">⏹ Завершить досрочно</button>
+    <button class="btn btn-primary" id="submitAnswerBtn">📨 Отправить ответ</button>
+  </div>
+</div>
+
+<script src="exam.js"></script>
+</body>
+</html>
