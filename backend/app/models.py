@@ -23,6 +23,8 @@ class Group(Base):
     access_key = Column(String(50), unique=True, index=True, default=lambda: str(uuid.uuid4())[:8])
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
     
+    questions = relationship("QuestionBank", back_populates="group", cascade="all, delete-orphan")
+
     questions_count = Column(Integer, default=5)
     time_per_question = Column(Integer, default=30)
     use_auto_generation = Column(Integer, default=1) 
@@ -74,6 +76,7 @@ class Answer(Base):
     
     id = Column(Integer, primary_key=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    question_id = Column(Integer, ForeignKey("question_bank.id"), nullable=True) 
     question_text = Column(Text, nullable=False)
     student_answer = Column(Text, nullable=False)
     score = Column(Float, nullable=True)
@@ -82,3 +85,17 @@ class Answer(Base):
     answered_at = Column(DateTime, default=datetime.now)
     
     student = relationship("Student", back_populates="answers")
+    question = relationship("QuestionBank", foreign_keys=[question_id])  
+    
+class QuestionBank(Base):
+    __tablename__ = "question_bank"
+    
+    id = Column(Integer, primary_key=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    question_text = Column(Text, nullable=False)
+    expected_answer = Column(Text, nullable=True)  # Ожидаемый ответ (для проверки)
+    topic = Column(String(200), nullable=True)     # Тема вопроса
+    difficulty = Column(Integer, default=3)         # Сложность 1-5
+    created_at = Column(DateTime, default=datetime.now)
+    
+    group = relationship("Group", back_populates="questions")

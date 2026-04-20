@@ -16,6 +16,8 @@ from . import models, schemas, auth
 from .config import LECTURES_DIR
 from .crypto import get_password_hash, verify_password
 from .whisper_service import whisper_service
+from collections import defaultdict
+exam_sessions_questions = defaultdict(dict)
 
 Base.metadata.create_all(bind=engine)
 
@@ -286,36 +288,69 @@ async def start_exam(
         raise HTTPException(status_code=404, detail="Session not found")
     
     group = student.group
-    
-    lectures = db.query(models.Lecture).filter(models.Lecture.group_id == group.id).all()
-    
     questions_list = []
+    question_ids = []  # НОВОЕ: сохраняем ID вопросов
     
-    if group.use_auto_generation and lectures:
-        combined_text = " ".join([lec.text_content for lec in lectures if lec.text_content])
-        if combined_text:
-            generated_questions = llm_service.generate_questions(combined_text, group.questions_count)
+    if group.use_auto_generation == 0:
+        db_questions = db.query(models.QuestionBank).filter(
+            models.QuestionBank.group_id == group.id
+        ).all()
+        
+        if db_questions:
+            import random
+            selected_questions = random.sample(
+                db_questions, 
+                min(group.questions_count, len(db_questions))
+            )
             
-            for i, q_text in enumerate(generated_questions):
+            for i, q in enumerate(selected_questions):
                 questions_list.append(
                     schemas.Question(
                         id=i+1,
-                        text=q_text,
+                        text=q.question_text,
                         time_limit=group.time_per_question
                     )
                 )
+                question_ids.append(q.id) 
+    
+    if not questions_list and group.use_auto_generation == 1:
+        lectures = db.query(models.Lecture).filter(models.Lecture.group_id == group.id).all()
+        
+        if lectures:
+            combined_text = " ".join([lec.text_content for lec in lectures if lec.text_content])
+            if combined_text:
+                generated_questions = llm_service.generate_questions(combined_text, group.questions_count)
+                
+                for i, q_text in enumerate(generated_questions):
+                    questions_list.append(
+                        schemas.Question(
+                            id=i+1,
+                            text=q_text,
+                            time_limit=group.time_per_question
+                        )
+                    )
+                    question_ids.append(-1)  # -1 означает сгенерированный вопрос
     
     if not questions_list:
-        questions_list = [
-            schemas.Question(
-                id=i+1,
-                text=f"Вопрос {i+1}. Опишите основные концепции изученного материала?",
-                time_limit=group.time_per_question
+        for i in range(group.questions_count):
+            questions_list.append(
+                schemas.Question(
+                    id=i+1,
+                    text=f"Вопрос {i+1}. Опишите основные концепции изученного материала?",
+                    time_limit=group.time_per_question
+                )
             )
-            for i in range(group.questions_count)
-        ]
+            question_ids.append(-1)
     
-    return schemas.ExamStartResponse(questions=questions_list)
+    exam_sessions_questions[session_id] = {
+        "questions": questions_list,
+        "question_ids": question_ids
+    }
+    
+    return schemas.ExamStartResponse(
+        questions=questions_list,
+        question_ids=question_ids
+    )
 
 @app.post("/api/exam/submit", response_model=schemas.ExamResultResponse)
 async def submit_exam(
@@ -331,29 +366,49 @@ async def submit_exam(
         raise HTTPException(status_code=404, detail="Session not found")
     
     group = student.group
+    
+    session_data = exam_sessions_questions.get(session_id, {})
+    question_ids = session_data.get("question_ids", [])
+    
     results = []
     total = 0
-
     
     for i, answer in enumerate(submit_data.answers):
+        expected_answer = None
         question_text = f"Вопрос {i+1}"
+        question_id = None
         
-        relevant_chunks = embeddings_service.search_similar_chunks(
-            db, group.id, answer, top_k=3
-        )
+        if i < len(question_ids) and question_ids[i] != -1:
+            db_question = db.query(models.QuestionBank).filter(
+                models.QuestionBank.id == question_ids[i]
+            ).first()
+            if db_question:
+                question_text = db_question.question_text
+                expected_answer = db_question.expected_answer
+                question_id = db_question.id
         
-        if relevant_chunks:
-            evaluation = llm_service.check_answer_with_rag(
-                question_text, answer, relevant_chunks
+        if expected_answer:
+            evaluation = llm_service.evaluate_answer_with_expected(
+                question_text, answer, expected_answer
             )
         else:
-            evaluation = llm_service.evaluate_answer(question_text, answer)
+            relevant_chunks = embeddings_service.search_similar_chunks(
+                db, group.id, answer, top_k=3
+            )
+            
+            if relevant_chunks:
+                evaluation = llm_service.check_answer_with_rag(
+                    question_text, answer, relevant_chunks
+                )
+            else:
+                evaluation = llm_service.evaluate_answer(question_text, answer)
         
         score = evaluation["score"]
         comment = evaluation["comment"]
         
         db_answer = models.Answer(
             student_id=student.id,
+            question_id=question_id,  # НОВОЕ
             question_text=question_text,
             student_answer=answer,
             score=score,
@@ -371,6 +426,9 @@ async def submit_exam(
     
     student.completed_at = datetime.now()
     db.commit()
+    
+    if session_id in exam_sessions_questions:
+        del exam_sessions_questions[session_id]
     
     return schemas.ExamResultResponse(
         results=results,
@@ -436,3 +494,165 @@ async def transcribe_audio(
     finally:
         if temp_path.exists():
             temp_path.unlink()
+
+@app.post("/api/groups/{group_id}/questions/upload-json")
+async def upload_questions_json(
+    group_id: int,
+    file: UploadFile = File(...),
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    """
+    Загрузка вопросов из JSON файла
+    Формат JSON: [{"question": "текст", "expected_answer": "ответ", "topic": "тема", "difficulty": 3}]
+    """
+    # Проверяем группу
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    try:
+        content = await file.read()
+        questions_data = json.loads(content.decode('utf-8'))
+        
+        results = {"total": len(questions_data), "added": 0, "skipped": 0, "errors": []}
+        
+        for idx, q_data in enumerate(questions_data):
+            try:
+                if not q_data.get("question"):
+                    results["errors"].append(f"Row {idx+1}: missing 'question' field")
+                    results["skipped"] += 1
+                    continue
+                
+                # Создаем вопрос
+                question = models.QuestionBank(
+                    group_id=group_id,
+                    question_text=q_data["question"],
+                    expected_answer=q_data.get("expected_answer", ""),
+                    topic=q_data.get("topic", ""),
+                    difficulty=q_data.get("difficulty", 3)
+                )
+                db.add(question)
+                results["added"] += 1
+                
+            except Exception as e:
+                results["errors"].append(f"Row {idx+1}: {str(e)}")
+                results["skipped"] += 1
+        
+        db.commit()
+        return results
+        
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/groups/{group_id}/questions/upload-csv")
+async def upload_questions_csv(
+    group_id: int,
+    file: UploadFile = File(...),
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    import csv
+    import io
+    
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    try:
+        content = await file.read()
+        text = content.decode('utf-8-sig')
+        csv_reader = csv.reader(io.StringIO(text))
+        
+        first_row = next(csv_reader, None)
+        if first_row and first_row[0].lower() in ['вопрос', 'question', '"вопрос"']:
+            pass
+        else:
+            questions_data = [first_row] + list(csv_reader)
+            csv_reader = iter(questions_data)
+        
+        results = {"total": 0, "added": 0, "skipped": 0, "errors": []}
+        
+        for idx, row in enumerate(csv_reader):
+            results["total"] += 1
+            if not row or not row[0].strip():
+                results["skipped"] += 1
+                continue
+            
+            try:
+                question = models.QuestionBank(
+                    group_id=group_id,
+                    question_text=row[0].strip(),
+                    expected_answer=row[1].strip() if len(row) > 1 else "",
+                    topic=row[2].strip() if len(row) > 2 else "",
+                    difficulty=int(row[3]) if len(row) > 3 and row[3].strip().isdigit() else 3
+                )
+                db.add(question)
+                results["added"] += 1
+            except Exception as e:
+                results["errors"].append(f"Row {idx+1}: {str(e)}")
+                results["skipped"] += 1
+        
+        db.commit()
+        return results
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/groups/{group_id}/questions", response_model=List[schemas.QuestionBankResponse])
+async def get_group_questions(
+    group_id: int,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    questions = db.query(models.QuestionBank).filter(
+        models.QuestionBank.group_id == group_id
+    ).all()
+    
+    return questions
+
+@app.delete("/api/groups/{group_id}/questions/{question_id}")
+async def delete_question(
+    group_id: int,
+    question_id: int,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    question = db.query(models.QuestionBank).filter(
+        models.QuestionBank.id == question_id,
+        models.QuestionBank.group_id == group_id
+    ).first()
+    
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    db.delete(question)
+    db.commit()
+    
+    return {"message": "Question deleted"}

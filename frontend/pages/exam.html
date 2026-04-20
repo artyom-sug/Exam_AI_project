@@ -3,50 +3,54 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Экзамен | Устойчивое развитие</title>
-  <link rel="stylesheet" href="exam.css">
+  <title>Экзамен | Система оценивания знаний</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/exam.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="exam-container">
-  <!-- шапка: заголовок + таймер -->
   <div class="exam-header">
     <div class="exam-title">
-      <h1>📘 Экзамен</h1>
+      <h1>Экзамен</h1>
+      <div class="student-info" id="studentInfo"></div>
     </div>
     <div class="timer">
-      <span>⏱ Осталось времени:</span>
-      <span id="timerDisplay">30:00</span>
+      <span>Осталось на вопрос:</span>
+      <span id="timerDisplay">00:00</span>
     </div>
   </div>
 
-  <!-- карточка вопроса (динамическая) -->
+  <div class="progress-container">
+    <div class="progress-bar" id="progressBar"></div>
+    <div class="progress-text" id="progressText">Вопрос 1 из ?</div>
+  </div>
+
   <div class="question-card" id="questionCard">
     <div class="question-text" id="questionText">
-      ❓ <strong>Вопрос:</strong><br><br>
+      <div class="loading-spinner"></div>
       Загрузка вопроса...
     </div>
   </div>
 
-  <!-- карточка ответа -->
   <div class="answer-card">
-    <div class="answer-label">✍️ Ваш ответ:</div>
-    <textarea id="answerInput" placeholder="Введите ответ или используйте голосовой ввод..."></textarea>
+    <div class="answer-label">Ваш ответ:</div>
+    <textarea id="answerInput" placeholder="Введите ответ здесь..."></textarea>
 
-    <!-- реальный голосовой ввод -->
     <div class="voice-note">
       <span>🎙️</span>
-      <button class="voice-btn" id="voiceBtn">🎤 Голосовой ввод</button>
+      <button class="voice-btn" id="voiceBtn" type="button">Голосовой ввод</button>
       <span id="voiceStatus" class="voice-status"></span>
     </div>
   </div>
 
-  <!-- кнопки действий -->
   <div class="actions">
-    <button class="btn btn-secondary" id="finishEarlyBtn">⏹ Завершить досрочно</button>
-    <button class="btn btn-primary" id="submitAnswerBtn">📨 Отправить ответ</button>
+    <button class="btn btn-secondary" id="prevBtn" type="button" style="display: none;">← Предыдущий</button>
+    <button class="btn btn-primary" id="nextBtn" type="button">Следующий вопрос →</button>
+    <button class="btn btn-secondary" id="finishEarlyBtn" type="button" style="display: none;">⏹ Завершить экзамен</button>
   </div>
 </div>
 
-<script src="exam.js"></script>
+<script src="/js/exam.js"></script>
 </body>
 </html>

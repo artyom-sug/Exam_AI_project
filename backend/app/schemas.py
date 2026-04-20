@@ -65,6 +65,7 @@ class Question(BaseModel):
 
 class ExamStartResponse(BaseModel):
     questions: List[Question]
+    question_ids: List[int]  
 
 class AnswerSubmit(BaseModel):
     question_id: int
@@ -81,3 +82,27 @@ class AnswerResult(BaseModel):
 class ExamResultResponse(BaseModel):
     results: List[AnswerResult]
     total_score: float
+
+class QuestionBankCreate(BaseModel):
+    question_text: str
+    expected_answer: Optional[str] = None
+    topic: Optional[str] = None
+    difficulty: Optional[int] = 3
+
+class QuestionBankResponse(BaseModel):
+    id: int
+    group_id: int
+    question_text: str
+    expected_answer: Optional[str]
+    topic: Optional[str]
+    difficulty: int
+    
+    class Config:
+        from_attributes = True
+
+class QuestionBankUploadResponse(BaseModel):
+    total: int
+    added: int
+    skipped: int
+    errors: List[str]
+

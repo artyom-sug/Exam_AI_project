@@ -196,4 +196,50 @@ class LLMService:
         
         return {"score": float(score), "comment": comment}
 
+def evaluate_answer_with_expected(self, question: str, answer: str, expected_answer: str) -> Dict[str, Any]:
+    """
+    Оценка ответа студента с сравнением с ожидаемым ответом из базы
+    """
+    prompt = f"""
+Ты - экзаменатор. Сравни ответ студента с ожидаемым правильным ответом.
+
+Вопрос: {question}
+
+ОЖИДАЕМЫЙ ОТВЕТ (правильный):
+{expected_answer}
+
+ОТВЕТ СТУДЕНТА:
+{answer}
+
+Оцени ответ студента от 0 до 100 баллов, сравнивая с ожидаемым ответом.
+Критерии:
+- 90-100: Ответ близок к ожидаемому, все ключевые моменты раскрыты
+- 70-89: Ответ хороший, но есть небольшие упущения
+- 50-69: Ответ частичный, много упущений
+- 0-49: Ответ неверный или слишком краткий
+
+Формат ответа (строго):
+Оценка: X
+Комментарий: текст (укажи, что упущено или неверно)
+"""
+    
+    response = self.generate(prompt, temperature=0.3, is_student_answer=True, original_answer=answer)
+    
+    score = 50
+    comment = "Не удалось оценить ответ"
+    
+    try:
+        import re
+        score_match = re.search(r'Оценка:\s*(\d+)', response)
+        if score_match:
+            score = min(100, max(0, int(score_match.group(1))))
+        
+        comment_match = re.search(r'Комментарий:\s*(.+?)(?=$)', response, re.DOTALL)
+        if comment_match:
+            comment = comment_match.group(1).strip()[:300]
+    except Exception as e:
+        logger.error(f"Error parsing evaluation: {str(e)}")
+    
+    return {"score": float(score), "comment": comment}
+
 llm_service = LLMService()
