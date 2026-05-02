@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель преподавателя | Система оценивания знаний</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/teacher.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="teacher-container">
+        <!-- Шапка -->
+        <div class="teacher-header">
+            <div class="teacher-info">
+                <h2 id="teacherName">Иванов Иван Петрович</h2>
+                <p>Личный кабинет преподавателя</p>
+            </div>
+            <button class="logout-btn" id="logoutBtn">
+                <span>🚪</span> Выйти из аккаунта
+            </button>
+        </div>
+
+        <!-- Карточки действий -->
+        <div class="actions-grid">
+            <div class="action-card" id="createExamBtn">
+                <div class="card-icon">📝</div>
+                <h3>Создать экзамен</h3>
+                <p>Создайте виртуальную комнату для проведения экзамена с настройкой материалов, вопросов и времени</p>
+                <button class="card-btn">Создать →</button>
+            </div>
+            <div class="action-card" id="viewResultsBtn">
+                <div class="card-icon">📊</div>
+                <h3>Результаты экзаменов</h3>
+                <p>Просмотрите результаты студентов, их баллы и статистику сдачи экзаменов</p>
+                <button class="card-btn">Просмотреть →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно создания экзамена -->
+    <div class="modal" id="createExamModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Создание виртуальной комнаты для экзамена</h3>
+                <button class="modal-close" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createExamForm">
+                    <!-- Материалы лекций -->
+                    <div class="form-group">
+                        <label>Материалы лекций для проверки ответов</label>
+                        <div class="file-upload">
+                            <input type="file" id="lectureMaterials" accept=".pdf,.docx,.txt" multiple style="display: none;">
+                            <button type="button" class="upload-btn" onclick="document.getElementById('lectureMaterials').click()">
+                                📁 Загрузить файл (PDF, DOCX, TXT)
+                            </button>
+                            <div class="file-list" id="lectureFilesList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Источник вопросов -->
+                    <div class="form-group">
+                        <label>Источник вопросов</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="questionSource" value="auto" checked>
+                                <span class="radio-custom"></span>
+                                <div class="radio-content">
+                                    <strong>🤖 Генерация вопросов автоматически</strong>
+                                    <small>Система создаст вопросы на основе загруженных материалов</small>
+                                </div>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="questionSource" value="manual">
+                                <span class="radio-custom"></span>
+                                <div class="radio-content">
+                                    <strong>📋 Загрузить готовый список вопросов</strong>
+                                    <small>Использовать заранее подготовленные вопросы</small>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        <!-- Блок загрузки вопросов (появляется при выборе manual) -->
+                        <div class="manual-upload" id="manualUploadBlock" style="display: none;">
+                            <div class="file-upload">
+                                <input type="file" id="questionsFile" accept=".pdf,.docx,.txt,.json" style="display: none;">
+                                <button type="button" class="upload-btn" onclick="document.getElementById('questionsFile').click()">
+                                    📤 Загрузить список вопросов (PDF, DOCX, TXT, JSON)
+                                </button>
+                                <div class="file-list" id="questionsFileList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Количество вопросов</label>
+                            <input type="number" id="questionsCount" min="1" max="100" value="25" placeholder="Например: 25">
+                        </div>
+                        <div class="form-group">
+                            <label>Продолжительность экзамена (минуты)</label>
+                            <input type="number" id="examDuration" min="1" max="300" value="90" placeholder="Например: 90">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ключ комнаты (номер группы)</label>
+                        <input type="text" id="roomKey" placeholder="Например: ИВТ-21-1" required>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" id="cancelModalBtn">Отмена</button>
+                        <button type="submit" class="btn-create">Создать виртуальную комнату</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно результатов -->
+    <div class="modal modal-large" id="resultsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Результаты экзамена</h3>
+                <button class="modal-close" id="closeResultsModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Выбор группы -->
+                <div class="group-selector">
+                    <label>Выберите группу</label>
+                    <select id="groupSelect">
+                        <option value="">-- Выберите группу --</option>
+                    </select>
+                </div>
+
+                <!-- Поиск -->
+                <div class="search-box">
+                    <input type="text" id="studentSearch" placeholder="Поиск по ФИО студента...">
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <!-- Таблица результатов -->
+                <div class="results-table-wrapper">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>№</th>
+                                <th>ФИО студента</th>
+                                <th>Ответил на вопросов</th>
+                                <th>Балл</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center;">Выберите группу для просмотра результатов</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Статистика -->
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-label">Средний балл</div>
+                        <div class="stat-value" id="avgScore">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Сдали экзамен</div>
+                        <div class="stat-value" id="passedCount">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно ответов студента -->
+    <div class="modal modal-large" id="studentAnswersModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ответы студента</h3>
+                <button class="modal-close" id="closeAnswersModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="student-header" id="studentAnswersHeader">
+                    <h4 id="studentAnswersName">Иванов Иван Иванович</h4>
+                    <div class="student-score" id="studentAnswersScore">Балл: — / 100 · Ответил на вопросов: — / —</div>
+                </div>
+                <div class="answers-list" id="answersList">
+                    <!-- Список ответов будет здесь -->
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-cancel" id="closeAnswersModal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/teacher.js"></script>
+</body>
+</html>

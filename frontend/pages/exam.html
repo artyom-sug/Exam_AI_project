@@ -16,38 +16,25 @@
       <div class="student-info" id="studentInfo"></div>
     </div>
     <div class="timer">
-      <span>Осталось на вопрос:</span>
-      <span id="timerDisplay">00:00</span>
+      <span>Осталось времени:</span>
+      <span id="timerDisplay">00:00:00</span>
     </div>
   </div>
 
   <div class="progress-container">
     <div class="progress-bar" id="progressBar"></div>
-    <div class="progress-text" id="progressText">Вопрос 1 из ?</div>
+    <div class="progress-text" id="progressText">Заполнено: 0 из ? вопросов</div>
   </div>
 
-  <div class="question-card" id="questionCard">
-    <div class="question-text" id="questionText">
-      <div class="loading-spinner"></div>
-      Загрузка вопроса...
-    </div>
-  </div>
-
-  <div class="answer-card">
-    <div class="answer-label">Ваш ответ:</div>
-    <textarea id="answerInput" placeholder="Введите ответ здесь..."></textarea>
-
-    <div class="voice-note">
-      <span>🎙️</span>
-      <button class="voice-btn" id="voiceBtn" type="button">Голосовой ввод</button>
-      <span id="voiceStatus" class="voice-status"></span>
-    </div>
+  <div class="questions-container" id="questionsContainer">
+    <div class="loading-spinner"></div>
+    <p>Загрузка вопросов...</p>
   </div>
 
   <div class="actions">
-    <button class="btn btn-secondary" id="prevBtn" type="button" style="display: none;">← Предыдущий</button>
-    <button class="btn btn-primary" id="nextBtn" type="button">Следующий вопрос →</button>
-    <button class="btn btn-secondary" id="finishEarlyBtn" type="button" style="display: none;">⏹ Завершить экзамен</button>
+    <button class="btn btn-primary btn-finish" id="finishExamBtn" type="button">
+      ✅ Завершить экзамен
+    </button>
   </div>
 </div>
 

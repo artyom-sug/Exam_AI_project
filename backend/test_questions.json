@@ -1,0 +1,5 @@
+[
+  {"question": "Что такое машинное обучение?", "expected_answer": "Это подраздел ИИ, где модели обучаются на данных", "topic": "ML", "difficulty": 2},
+  {"question": "Объясните разницу между supervised и unsupervised learning", "expected_answer": "Supervised использует размеченные данные, unsupervised - нет", "topic": "ML", "difficulty": 3},
+  {"question": "Что такое переобучение (overfitting)?", "expected_answer": "Когда модель слишком точно запоминает обучающие данные и плохо обобщает", "topic": "ML", "difficulty": 3}
+]

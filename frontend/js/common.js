@@ -33,7 +33,6 @@ function delay(ms) {
 const container = document.getElementById('container');
 const signinBtn = document.getElementById('signinBtn');
 const signupBtn = document.getElementById('signupBtn');
-const mobileSwitch = document.getElementById('mobileSwitchToSignin');
 
 signupBtn?.addEventListener('click', () => {
     container.classList.add('right-panel-active');
@@ -42,12 +41,6 @@ signupBtn?.addEventListener('click', () => {
 });
 
 signinBtn?.addEventListener('click', () => {
-    container.classList.remove('right-panel-active');
-    document.querySelector('.signup-panel')?.classList.remove('active');
-    document.querySelector('.signin-panel')?.classList.add('active');
-});
-
-mobileSwitch?.addEventListener('click', () => {
     container.classList.remove('right-panel-active');
     document.querySelector('.signup-panel')?.classList.remove('active');
     document.querySelector('.signin-panel')?.classList.add('active');
@@ -155,18 +148,18 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
     let hasError = false;
 
     if (!login) {
-        showError('LoginError', 'Укажите логин');
+        showError('teaherLoginError', 'Укажите логин');
         hasError = true;
     } else if (login.length < 3) {
-        showError('LoginError', 'Логин слишком короткий');
+        showError('teacherLoginError', 'Логин слишком короткий');
         hasError = true;
     }
 
     if (!password) {
-        showError('PasswordError', 'Укажите пароль');
+        showError('teacherPasswordError', 'Укажите пароль');
         hasError = true;
     } else if (password.length < 3) {
-        showError('PasswordError', 'Минимум 3 символа');
+        showError('teacherPasswordError', 'Минимум 3 символа');
         hasError = true;
     }
 

@@ -1,5 +1,6 @@
 активировать виртуальное окружение:
 venv\Scripts\activate
+source /Users/novikovamaria/Desktop/Exam_AI_project/venv/bin/activate
 
 залить на гит:
     в первый раз:
