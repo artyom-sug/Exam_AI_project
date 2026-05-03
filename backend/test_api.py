@@ -9,9 +9,9 @@ def test_health():
 
 def test_teacher_login():
     response = requests.post(
-        f"{BASE_URL}/teacher/login",
-        json={"login": "teacher", "password": "123"}
-    )
+    f"{BASE_URL}/teacher/login",
+    json={"login": "mr.dyadichev", "password": "test123"}  # Было teacher/123
+)
     if response.status_code == 200:
         data = response.json()
         print(f"Login successful: {data['access_token'][:50]}...")

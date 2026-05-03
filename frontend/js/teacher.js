@@ -169,7 +169,7 @@ async function loadGroups() {
             });
         } else {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/teacher/groups`, {
+            const response = await fetch(`${API_BASE_URL}/groups`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Ошибка загрузки групп');
@@ -203,7 +203,7 @@ async function loadResultsForGroup() {
             updateStats(currentGroupResults);
         } else {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/teacher/results?group_id=${groupId}`, {
+            const response = await fetch(`${API_BASE_URL}/groups/${groupId}/results`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Ошибка загрузки результатов');

@@ -1,0 +1,604 @@
+[
+  {
+    "number": 1,
+    "question": "Понятие информационной системы (ИС).",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 2,
+    "question": "Становление компьютерной науки.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 3,
+    "question": "Структура однопользовательской и многопользовательской, малой и корпоративной ИС, локальной и распределенной ИС, состав и назначение подсистем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 4,
+    "question": "Основные особенности современных проектов ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 5,
+    "question": "Этапы создания ИС: формирование требований, концептуальное проектирование, спецификация приложений, разработка моделей, интеграция и тестирование информационной системы.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 6,
+    "question": "Методы программной инженерии в проектировании ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 7,
+    "question": "Понятие жизненного цикла ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 8,
+    "question": "Процессы жизненного цикла: основные, вспомогательные, организационные. Содержание и взаимосвязь процессов жизненного цикла ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 9,
+    "question": "Исторические примеры создания и проектирования информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 10,
+    "question": "Стадии жизненного цикла ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 11,
+    "question": "Регламентация процессов проектирования в отечественных и международных стандартах.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 12,
+    "question": "Роль и место стандартизации в проектировании ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 13,
+    "question": "Основные стадии и этапы разработки информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 14,
+    "question": "Этапы выполнения работ по разработке и проектированию ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 15,
+    "question": "Основные понятия проектирования ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 16,
+    "question": "Применение автоматизированных систем и программных продуктов при проектировании ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 17,
+    "question": "Структура информатики, математические и информационные модели.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 18,
+    "question": "Методологии моделирования предметной области.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 19,
+    "question": "Структурная модель предметной области.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 20,
+    "question": "Аддитивные технологии для разработки и создания информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 21,
+    "question": "Обновление оборудования и программного обеспечения в компьютерных классах университета.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 22,
+    "question": "Организационная структура. Структура управления. Функциональная структура.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 23,
+    "question": "Перспективы развития информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 24,
+    "question": "Начальная хронология вычислительных устройств.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 25,
+    "question": "История аналоговых вычислительных машин.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 26,
+    "question": "Промышленная революция. Счетно-перфорационные устройства.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 27,
+    "question": "Информационные процессы предприятий.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 28,
+    "question": "Документооборот в информационных системах.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 29,
+    "question": "Проведение анализа при проектировании информационных систем. РИНЦ.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 30,
+    "question": "Моделирование информационных процессов.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 31,
+    "question": "Разработка модели бизнес-объектов.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 32,
+    "question": "Разработка концептуальной модели данных.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 33,
+    "question": "Разработка требований к системе.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 34,
+    "question": "Анализ требований и предварительное проектирование системы.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 35,
+    "question": "Физические основы информационных технологий.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 36,
+    "question": "Проектирование физической реализации системы.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 37,
+    "question": "Понятие архитектуры информационных систем. Типы архитектур.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 38,
+    "question": "Тенденции в развитии информационных технологий.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 39,
+    "question": "Информационно-аналитические системы, методы создания и перспективы использования.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 40,
+    "question": "Архитектурный подход к проектированию информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 41,
+    "question": "Роль системного проектирования в процессе создания информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 42,
+    "question": "Цель системного проектирования ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 43,
+    "question": "Этапы процесса системного проектирования ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 44,
+    "question": "Результаты системного проектирования ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 45,
+    "question": "Предпроектное обследование объекта информатизации.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 46,
+    "question": "Анализ результатов предпроектного обследования.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 47,
+    "question": "Формирование требований к системе.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 48,
+    "question": "Функциональные и нефункциональные требования.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 49,
+    "question": "Разработка системного проекта.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 50,
+    "question": "Формирование ТЗ на системный проект.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 51,
+    "question": "Управление проектом на этапе создания системного проекта на ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 52,
+    "question": "Оценка стоимости проекта.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 53,
+    "question": "Оценка экономической эффективности проекта.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 54,
+    "question": "Информационные технологии и системы.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 55,
+    "question": "История и этапы эволюции информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 56,
+    "question": "Развитие информационных технологий.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 57,
+    "question": "Проектирование инфраструктуры ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 58,
+    "question": "Проектирование защиты и безопасности ИС как компонента ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 59,
+    "question": "Управление проектом на этапе создания детальных проектов компонентов ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 60,
+    "question": "Менеджмент качества ИТ-проекта.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 61,
+    "question": "Информационное обеспечение ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 62,
+    "question": "Виды и комплектность конструкторской документации.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 63,
+    "question": "Основные понятия классификации информации.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 64,
+    "question": "Оформление схем деления на составные части, пример.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 65,
+    "question": "Схема деления изделий на составные части.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 66,
+    "question": "Система документации.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 67,
+    "question": "Внутримашинное информационное обеспечение.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 68,
+    "question": "Проектирование экранных форм электронных документов.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 69,
+    "question": "Информационная база и способы ее организации.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 70,
+    "question": "Технология описания бизнес-процессов при проектировании информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 71,
+    "question": "Методы анализа и оптимизации бизнес-процессов.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 72,
+    "question": "Моделирование бизнес-процессов при проектировании информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 73,
+    "question": "Объекты интеллектуальной собственности, виды, отличия.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 74,
+    "question": "Порядок и особенности регистрации программы для ЭВМ и базы данных.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 75,
+    "question": "Проектирование компьютерной сети предприятия, особенности, примеры.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 76,
+    "question": "Грантовая поддержка при проектировании ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 77,
+    "question": "Создание заявки для финансирования разрабатываемой ИС. Создание отчетов.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 78,
+    "question": "Испытания с использованием моделей.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 79,
+    "question": "Проектирование логической модели ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 80,
+    "question": "Проектирование физической модели информационной системы.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 81,
+    "question": "Классификация испытаний, физическое моделирование.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 82,
+    "question": "Охранные документы, созданные при проектировании информационных систем.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 83,
+    "question": "Диаграммы внедрения: подсистемы, компоненты, связи.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 84,
+    "question": "Испытания, группы задач, решаемые при испытаниях.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 85,
+    "question": "Отчет о проектировании ИС, назначение, вводная часть.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  },
+  {
+    "number": 86,
+    "question": "Требования к структурным элементам и основной части отчета о проектировании ИС.",
+    "expected_answer": "",
+    "topic": "Общий",
+    "difficulty": 3
+  }
+]

@@ -148,18 +148,18 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
     let hasError = false;
 
     if (!login) {
-        showError('teaherLoginError', 'Укажите логин');
+        showError('teacherLoginError', 'Укажите логин'); 
         hasError = true;
     } else if (login.length < 3) {
-        showError('teacherLoginError', 'Логин слишком короткий');
+        showError('teacherLoginError', 'Логин слишком короткий'); 
         hasError = true;
     }
 
     if (!password) {
-        showError('teacherPasswordError', 'Укажите пароль');
+        showError('teacherPasswordError', 'Укажите пароль');  
         hasError = true;
     } else if (password.length < 3) {
-        showError('teacherPasswordError', 'Минимум 3 символа');
+        showError('teacherPasswordError', 'Минимум 3 символа'); 
         hasError = true;
     }
 

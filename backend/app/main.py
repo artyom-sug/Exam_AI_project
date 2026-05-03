@@ -13,11 +13,13 @@ from .embeddings_service import embeddings_service
 from .pdf_parser import extract_text_from_pdf
 from .database import engine, get_db, Base
 from . import models, schemas, auth
-from .config import LECTURES_DIR
+from .config import LECTURES_DIR, TEMP_AUDIO_DIR
 from .crypto import get_password_hash, verify_password
 from .whisper_service import whisper_service
 from collections import defaultdict
 exam_sessions_questions = defaultdict(dict)
+import logging
+logger = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
 
@@ -495,6 +497,45 @@ async def transcribe_audio(
         if temp_path.exists():
             temp_path.unlink()
 
+@app.post("/api/teacher/exams/create")
+async def create_exam(
+    exam_data: dict,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    room_key = exam_data.get("room_key")
+    questions_count = exam_data.get("questions_count", 25)
+    duration_minutes = exam_data.get("duration_minutes", 90)
+    question_source = exam_data.get("question_source", "auto")
+    
+    if not room_key:
+        raise HTTPException(status_code=400, detail="room_key required")
+    
+    existing = db.query(models.Group).filter(models.Group.access_key == room_key).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Group with this key already exists")
+    
+    group = models.Group(
+        name=room_key,
+        teacher_id=current_teacher.id,
+        access_key=room_key,
+        questions_count=questions_count,
+        time_per_question=60,  # duration_minutes * 60 / questions_count
+        use_auto_generation=1 if question_source == "auto" else 0
+    )
+    db.add(group)
+    db.commit()
+    db.refresh(group)
+    
+    return {"id": group.id, "access_key": group.access_key, "message": "Exam created"}
+
+@app.get("/api/groups/by-key")
+async def get_group_by_key(key: str, db: Session = Depends(get_db)):
+    group = db.query(models.Group).filter(models.Group.access_key == key.upper()).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return {"id": group.id, "name": group.name, "access_key": group.access_key}
+
 @app.post("/api/groups/{group_id}/questions/upload-json")
 async def upload_questions_json(
     group_id: int,
@@ -656,3 +697,51 @@ async def delete_question(
     db.commit()
     
     return {"message": "Question deleted"}
+
+@app.get("/api/groups/{group_id}/results")
+async def get_group_results(
+    group_id: int,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    students = db.query(models.Student).filter(models.Student.group_id == group_id).all()
+    
+    results = []
+    for student in students:
+        answers = db.query(models.Answer).filter(models.Answer.student_id == student.id).all()
+        
+        total_score = sum(a.score or 0 for a in answers) / len(answers) if answers else 0
+        answered = len([a for a in answers if a.student_answer and a.student_answer.strip()])
+        
+        student_answers = []
+        for answer in answers:
+            question = db.query(models.QuestionBank).filter(
+                models.QuestionBank.id == answer.question_id
+            ).first() if answer.question_id else None
+            
+            student_answers.append({
+                "question": answer.question_text,
+                "student_answer": answer.student_answer,
+                "correct_answer": question.expected_answer if question else "",
+                "score": answer.score,
+                "comment": answer.comment
+            })
+        
+        results.append({
+            "id": student.id,
+            "name": student.fio,
+            "answered": answered,
+            "total": len(answers) if answers else 0,
+            "score": round(total_score, 1),
+            "answers": student_answers
+        })
+    
+    return results
