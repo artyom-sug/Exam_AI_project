@@ -9,10 +9,7 @@ from app.database import SessionLocal
 from app import models
 from app.pdf_parser import extract_text_from_pdf
 from app.embeddings_service import embeddings_service
-from app.config import LECTURES_DIR
-
-
-PDF_FOLDER = Path(r"C:\Users\artyo\OneDrive\Документы\Exam_AI_project\backend\uploads\lectures")
+from app.config import LECTURES_DIR 
 
 
 def get_or_create_group(db: Session, group_name: str = "Группа с лекциями") -> models.Group:
@@ -44,7 +41,6 @@ def get_or_create_group(db: Session, group_name: str = "Группа с лекц
 
 
 def is_lecture_already_loaded(db: Session, group_id: int, filename: str) -> bool:
-    """Проверяет, загружена ли уже лекция с таким именем"""
     lecture = db.query(models.Lecture).filter(
         models.Lecture.group_id == group_id,
         models.Lecture.filename == filename
@@ -54,10 +50,9 @@ def is_lecture_already_loaded(db: Session, group_id: int, filename: str) -> bool
 
 def load_single_pdf(db: Session, group_id: int, pdf_path: Path) -> bool:
     try:
-        # Проверяем, не загружена ли уже эта лекция
         if is_lecture_already_loaded(db, group_id, pdf_path.name):
             print(f"Пропуск: {pdf_path.name} (уже загружена)")
-            return True  # Считаем успехом, так как файл уже есть
+            return True
         
         print(f"Обработка: {pdf_path.name}")
         
@@ -145,12 +140,17 @@ def main():
         print(f"Название: {group.name}")
         print("=" * 50)
         
-        if not PDF_FOLDER.exists():
-            print(f"\nПапка с PDF не найдена: {PDF_FOLDER}")
+        lectures_folder = Path(LECTURES_DIR)
+        
+        if not lectures_folder.exists():
+            print(f"\nПапка с PDF не найдена: {lectures_folder}")
             print("Создайте папку и поместите в неё PDF файлы с лекциями")
+            # Создаем папку если её нет
+            lectures_folder.mkdir(parents=True, exist_ok=True)
+            print(f"Создана папка: {lectures_folder}")
             return
         
-        results = load_all_pdfs(db, group.id, PDF_FOLDER)
+        results = load_all_pdfs(db, group.id, lectures_folder)
         
         print("\n" + "=" * 50)
         print("РЕЗУЛЬТАТЫ ЗАГРУЗКИ:")
