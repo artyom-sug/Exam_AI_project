@@ -87,49 +87,6 @@ function stopAutoSave() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // ★★★ ПРОВЕРЯЕМ, БЫЛ ЛИ ЭКЗАМЕН ЗАВЕРШЕН ★★★
-    // Смотрим в sessionStorage флаг завершения
-    let completedSessionId = null;
-    
-    // Ищем любой флаг завершенного экзамена
-    for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && key.startsWith('exam_completed_')) {
-            completedSessionId = key.replace('exam_completed_', '');
-            break;
-        }
-    }
-    
-    // Если есть завершенный экзамен, показываем результаты
-    if (completedSessionId) {
-        console.log('Найден завершенный экзамен, загружаем результаты');
-        
-        // Восстанавливаем данные для отображения результатов
-        const savedState = localStorage.getItem('exam_session_state');
-        if (savedState) {
-            try {
-                const state = JSON.parse(savedState);
-                examSession = {
-                    sessionId: state.sessionId,
-                    groupId: state.groupId,
-                    fio: state.fio
-                };
-                questions = state.questions || [];
-                questionIds = state.questionIds || [];
-                answers = state.answers || [];
-                
-                // Показываем заглушку результатов (нужно будет загрузить реальные результаты)
-                showCachedResults();
-                return;
-            } catch(e) {
-                console.error('Error loading cached results:', e);
-            }
-        }
-        
-        // Если не удалось восстановить, перенаправляем на главную
-        window.location.href = '/';
-        return;
-    }
     // ★★★ ПРОВЕРЯЕМ, НЕ ПОКАЗЫВАЕМ ЛИ МЫ РЕЗУЛЬТАТЫ ★★★
     const hasResultsContainer = document.querySelector('.results-container');
     if (hasResultsContainer) {
@@ -771,7 +728,6 @@ async function finishExam() {
 
         const results = await response.json();
         hideLoadingIndicator();
-        localStorage.setItem(`exam_results_${examSession.sessionId}`, JSON.stringify(results));
         showResults(results);
 
         clearExamSessionState();
@@ -838,7 +794,6 @@ async function autoSubmitExam() {
 
         const results = await response.json();
         hideLoadingIndicator();
-        localStorage.setItem(`exam_results_${examSession.sessionId}`, JSON.stringify(results));
         showAutoSubmitResults(results);
 
         clearExamSessionState();
@@ -873,37 +828,6 @@ function showAutoSubmitResults(results) {
     localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);
     localStorage.removeItem('examSession');
     sessionStorage.setItem('exam_completed_' + examSession.sessionId, 'true');
-}
-
-function showCachedResults() {
-    // Пытаемся загрузить сохраненные результаты
-    const savedResults = localStorage.getItem(`exam_results_${examSession?.sessionId}`);
-    
-    if (savedResults) {
-        try {
-            const results = JSON.parse(savedResults);
-            showResults(results);
-            return;
-        } catch(e) {}
-    }
-    
-    // Если нет сохраненных результатов, показываем сообщение
-    document.querySelector('.exam-container').innerHTML = `
-        <div class="results-container">
-            <div class="total-score-badge">
-                <div class="score-circle">
-                    <span class="score-value">—</span>
-                    <span class="score-max">/ 100</span>
-                </div>
-            </div>
-            <p style="text-align: center; margin: 40px;">📊 Экзамен завершен. Результаты были отправлены преподавателю.</p>
-            <div class="results-actions">
-                <button class="btn-exit" onclick="clearStorageAndExit()">
-                    🏠 Завершить сессию
-                </button>
-            </div>
-        </div>
-    `;
 }
 
 function getResultsHtml(results) {
@@ -985,7 +909,6 @@ function clearStorageAndExit() {
     if (examSession) {
         clearExamSessionState();
         localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);
-        localStorage.removeItem(`exam_results_${examSession.sessionId}`);
         sessionStorage.removeItem('exam_completed_' + examSession.sessionId);
     }
     localStorage.removeItem('examSession');
