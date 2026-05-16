@@ -358,7 +358,7 @@ async function startVoiceInputForQuestion(questionIndex) {
         }
         if (textarea) {
             textarea.style.border = '2px solid #87dbfd';
-            textarea.style.backgroundColor = '#fff5f5';
+            textarea.style.backgroundColor = '#ffffff';
         }
 
         // Очищаем chunks перед новой записью
