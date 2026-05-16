@@ -332,7 +332,7 @@ textarea:disabled {
 }
 
 .btn-finish {
-  background: linear-gradient(to bottom right, #ff6b6b, #d5ceeb);
+  background: #446bbf;
   color: white;
   font-size: 16px;
   padding: 16px 40px;
@@ -533,26 +533,10 @@ textarea:disabled {
 .question-number {
     font-size: 16px;
     font-weight: 600;
-    color: #87dbfd;
+    color: #2c3e66;
     background: linear-gradient(135deg, #87dbfd20, #d5ceeb20);
     padding: 6px 14px;
     border-radius: 20px;
-}
-
-.question-status {
-    font-size: 14px;
-    padding: 4px 12px;
-    border-radius: 20px;
-}
-
-.question-status.answered {
-    color: #4CAF50;
-    background: #4CAF5020;
-}
-
-.question-status.not-answered {
-    color: #999;
-    background: #f0f0f0;
 }
 
 .question-text {

@@ -26,14 +26,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/';
         return;
     }
-    
+
     examSession = JSON.parse(sessionStr);
     studentInfo.textContent = `${examSession.fio}`;
-    
+
     await loadExam();
-    
+
     initSpeechRecognition();
-    
+
     if (finishExamBtn) {
         finishExamBtn.addEventListener('click', finishExam);
     }
@@ -42,49 +42,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadExam() {
     try {
         questionsContainer.innerHTML = '<div class="loading-spinner"></div><p>Загрузка вопросов...</p>';
-        
+
         // Правильный вызов API - session_id в URL
         const response = await fetch(`${API_BASE_URL}/exam/start?session_id=${examSession.sessionId}`, {
             method: 'POST'
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Ошибка ${response.status}: ${errorText}`);
         }
-        
+
         const data = await response.json();
-        
+
         // Проверяем структуру ответа
         console.log('Ответ от сервера:', data);
-        
+
         if (data.questions && Array.isArray(data.questions)) {
             questions = data.questions;
             questionIds = data.question_ids || [];
         } else {
             throw new Error('Неверный формат ответа от сервера');
         }
-        
+
         if (questions.length === 0) {
             throw new Error('Нет вопросов для этого экзамена');
         }
-        
+
         answers = new Array(questions.length).fill('');
-        
+
         // Загружаем сохраненные ответы
         loadSavedAnswers();
-        
+
         // Рассчитываем время
         const timePerQuestion = 60; // 60 секунд на вопрос
         const totalSeconds = questions.length * timePerQuestion;
         totalTimeLeft = totalSeconds;
-        
+
         updateTimerDisplay();
         renderAllQuestions();
         startTimer();
-        
+
         console.log(`Загружено ${questions.length} вопросов`);
-        
+
     } catch (error) {
         console.error('Ошибка:', error);
         questionsContainer.innerHTML = `<p class="error-message">Ошибка загрузки вопросов: ${error.message}<br>Проверьте, запущен ли сервер на порту 8000</p>`;
@@ -105,33 +105,30 @@ function renderAllQuestions() {
         console.error('questionsContainer not found');
         return;
     }
-    
+
     if (questionsContainer) {
         questionsContainer.innerHTML = '';
     }
-    
+
     for (let index = 0; index < questions.length; index++) {
         const question = questions[index];
         const questionBlock = document.createElement('div');
         questionBlock.className = 'question-block';
-        
+
         const questionText = question.text || question.question_text || `Вопрос ${index + 1}`;
         const isAnswered = answers[index] && answers[index].trim() !== '';
-        
+
         // Создаем HTML
         questionBlock.innerHTML = `
             <div class="question-header">
                 <div class="question-number">Вопрос ${index + 1} из ${questions.length}</div>
-                <div class="question-status ${isAnswered ? 'answered' : 'not-answered'}">
-                    ${isAnswered ? '✓ Отвечен' : '○ Не отвечен'}
-                </div>
             </div>
             <div class="question-text">${escapeHtml(questionText)}</div>
             <div class="answer-area">
                 <div class="answer-label">Ваш ответ:</div>
-                <textarea 
-                    id="answer-${index}" 
-                    class="answer-textarea" 
+                <textarea
+                    id="answer-${index}"
+                    class="answer-textarea"
                     placeholder="Введите ответ здесь..."
                     data-index="${index}"
                     ${examFinished ? 'disabled' : ''}
@@ -143,27 +140,27 @@ function renderAllQuestions() {
                 </div>
             </div>
         `;
-        
+
         questionsContainer.appendChild(questionBlock);
-        
+
         // Добавляем обработчики событий
         if (!examFinished) {
             const textarea = document.getElementById(`answer-${index}`);
             const voiceBtn = questionBlock.querySelector(`.voice-btn-small[data-index="${index}"]`);
             const stopBtn = questionBlock.querySelector(`.voice-stop-btn-small[data-index="${index}"]`);
-            
+
             if (textarea) {
                 textarea.addEventListener('input', (e) => {
                     saveAnswer(index, e.target.value);
                 });
             }
-            
+
             if (voiceBtn) {
                 voiceBtn.addEventListener('click', () => {
                     startVoiceInputForQuestion(index);
                 });
             }
-            
+
             if (stopBtn) {
                 stopBtn.addEventListener('click', () => {
                     console.log('Stop button clicked for index:', index);
@@ -172,18 +169,18 @@ function renderAllQuestions() {
             }
         }
     }
-    
+
     updateProgress();
 }
 
 
 function saveAnswer(questionIndex, value) {
     if (examFinished) return;
-    
+
     answers[questionIndex] = value;
     const qid = questionIds[questionIndex] || questionIndex;
     localStorage.setItem(`exam_answer_${examSession.sessionId}_${qid}`, value);
-    
+
     const statusEl = document.querySelector(`.question-block[data-question-id="${qid}"] .question-status`);
     if (statusEl) {
         if (value && value.trim()) {
@@ -194,7 +191,7 @@ function saveAnswer(questionIndex, value) {
             statusEl.className = 'question-status not-answered';
         }
     }
-    
+
     updateProgress();
 }
 
@@ -207,32 +204,27 @@ function updateProgress() {
 
 function startTimer() {
     if (timerInterval) clearInterval(timerInterval);
-    
+
     timerInterval = setInterval(() => {
         if (examFinished) return;
-        
+
         if (totalTimeLeft > 0) {
             totalTimeLeft--;
             updateTimerDisplay();
-            
+
             if (totalTimeLeft === 60) {
-                showWarning('⚠️ Осталась 1 минута!');
+                showWarning('⏰ Осталась 1 минута!');
             }
-            if (totalTimeLeft === 30) {
-                showWarning('⚠️ Осталось 30 секунд!');
-            }
+
             if (totalTimeLeft === 10) {
-                showWarning('🔔 Осталось 10 секунд!');
+                showWarning('⏰ Осталось 10 секунд!');
             }
-            if (totalTimeLeft === 5) {
-                showWarning('⏰ Осталось 5 секунд!');
-            }
-            
+
             if (totalTimeLeft <= 0) {
                 clearInterval(timerInterval);
                 timerDisplay.textContent = "00:00";
                 showWarning('⏰ ВРЕМЯ ВЫШЛО! Экзамен автоматически завершается...');
-                
+
                 if (!autoSubmitTriggered && !examFinished) {
                     autoSubmitTriggered = true;
                     setTimeout(() => autoSubmitExam(), 1500);
@@ -260,7 +252,7 @@ function showWarning(message, isPermanent = false) {
         <button onclick="this.parentElement.remove()" style="background:none;border:none;color:white;margin-left:10px;cursor:pointer;">✖</button>
     `;
     document.body.appendChild(warning);
-    
+
     if (!isPermanent) {
         setTimeout(() => {
             if (warning.parentElement) warning.remove();
@@ -273,7 +265,7 @@ function updateTimerDisplay() {
     const seconds = totalTimeLeft % 60;
     const displayText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     timerDisplay.textContent = displayText;
-    
+
     if (totalTimeLeft <= 60) {
         timerDisplay.style.color = '#ff4444';
         timerDisplay.style.animation = 'pulse 0.5s infinite';
@@ -288,21 +280,21 @@ async function startVoiceInputForQuestion(questionIndex) {
         alert('Экзамен уже завершен');
         return;
     }
-    
+
     // Если уже идет запись для этого вопроса - останавливаем
     if (activeRecordingIndex === questionIndex && mediaRecorder?.state === 'recording') {
         stopVoiceInputForQuestion(questionIndex);
         return;
     }
-    
+
     // ★★★ Если идет запись другого вопроса - останавливаем и ЖДЕМ ★★★
     if (mediaRecorder?.state === 'recording') {
         console.log(`Stopping recording for question ${activeRecordingIndex} before starting ${questionIndex}`);
-        
+
         // Создаем Promise, который дождется остановки записи
         await new Promise((resolve) => {
             const originalOnStop = mediaRecorder.onstop;
-            
+
             mediaRecorder.onstop = async () => {
                 console.log(`Previous recording stopped for question ${activeRecordingIndex}`);
                 if (originalOnStop) {
@@ -311,17 +303,17 @@ async function startVoiceInputForQuestion(questionIndex) {
                 // Даем время на очистку
                 setTimeout(resolve, 300);
             };
-            
+
             mediaRecorder.stop();
         });
-        
+
         // Принудительно очищаем состояние после остановки
         if (mediaRecorder && mediaRecorder.stream) {
             mediaRecorder.stream.getTracks().forEach(track => track.stop());
         }
         mediaRecorder = null;
         audioChunks = [];
-        
+
         // Сбрасываем кнопки для предыдущего вопроса
         if (activeRecordingIndex !== null) {
             const oldVoiceBtn = document.querySelector(`.voice-btn-small[data-index="${activeRecordingIndex}"]`);
@@ -330,13 +322,13 @@ async function startVoiceInputForQuestion(questionIndex) {
             resetButtons(oldVoiceBtn, oldStopBtn, oldTextarea);
             if (oldVoiceBtn) oldVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
         }
-        
+
         activeRecordingIndex = null;
     }
-    
+
     // Небольшая задержка перед началом новой записи
     await new Promise(resolve => setTimeout(resolve, 200));
-    
+
     if (examFinished) {
         alert('Экзамен уже завершен');
         return;
@@ -344,54 +336,54 @@ async function startVoiceInputForQuestion(questionIndex) {
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
+
         mediaRecorder = new MediaRecorder(stream, {
             mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
         });
         mediaRecorder.stream = stream; // Сохраняем ссылку на stream
         audioChunks = [];
         activeRecordingIndex = questionIndex;
-        
+
         const textarea = document.getElementById(`answer-${questionIndex}`);
         const voiceBtn = document.querySelector(`.voice-btn-small[data-index="${questionIndex}"]`);
         const stopBtn = document.querySelector(`.voice-stop-btn-small[data-index="${questionIndex}"]`);
-        
+
         if (voiceBtn) {
             voiceBtn.innerHTML = '⏹️ Остановить';
             voiceBtn.disabled = false;
         }
         if (stopBtn) {
-            stopBtn.style.display = 'inline-block'; 
+            stopBtn.style.display = 'inline-block';
             stopBtn.disabled = false;
         }
         if (textarea) {
             textarea.style.border = '2px solid #87dbfd';
             textarea.style.backgroundColor = '#fff5f5';
         }
-        
+
         // Очищаем chunks перед новой записью
         audioChunks = [];
-        
+
         mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
                 audioChunks.push(event.data);
             }
         };
-        
+
         mediaRecorder.onstop = async () => {
             console.log(`Recording stopped for question ${questionIndex}, chunks: ${audioChunks.length}`);
-            
+
             // Сохраняем ссылки локально, так как глобальные могут измениться
             const currentQuestionIndex = questionIndex;
             const currentTextarea = textarea;
             const currentVoiceBtn = voiceBtn;
             const currentStopBtn = stopBtn;
-            
+
             if (audioChunks.length === 0) {
                 console.warn('No audio chunks recorded');
                 resetButtons(currentVoiceBtn, currentStopBtn, currentTextarea);
                 if (currentVoiceBtn) currentVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
-                
+
                 // Очищаем глобальное состояние только если это текущая запись
                 if (activeRecordingIndex === currentQuestionIndex) {
                     if (mediaRecorder && mediaRecorder.stream) {
@@ -405,48 +397,48 @@ async function startVoiceInputForQuestion(questionIndex) {
             }
 
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            
+
             if (currentVoiceBtn) {
                 currentVoiceBtn.innerHTML = '🔄 Распознавание...';
                 currentVoiceBtn.disabled = true;
             }
-            
+
             try {
                 const formData = new FormData();
                 formData.append('file', audioBlob, 'recording.webm');
-                
+
                 const response = await fetch(`${API_BASE_URL}/transcribe`, {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!response.ok) {
                     const error = await response.json();
                     throw new Error(error.detail || 'Ошибка распознавания');
                 }
-                
+
                 const data = await response.json();
                 const transcribedText = data.text;
                 console.log(`Transcribed for question ${currentQuestionIndex}:`, transcribedText);
-                
+
                 if (currentTextarea && transcribedText) {
                     const currentText = currentTextarea.value;
                     const newText = currentText + (currentText ? ' ' : '') + transcribedText;
                     currentTextarea.value = newText;
                     saveAnswer(currentQuestionIndex, newText);
-                    
+
                     if (examFinished) {
                         answers[currentQuestionIndex] = newText;
                     }
                 }
-                
+
                 if (currentVoiceBtn) {
                     currentVoiceBtn.innerHTML = '✅ Готово';
                     setTimeout(() => {
                         if (currentVoiceBtn) currentVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
                     }, 2000);
                 }
-                
+
             } catch (error) {
                 console.error('Ошибка:', error);
                 if (!examFinished) {
@@ -460,7 +452,7 @@ async function startVoiceInputForQuestion(questionIndex) {
                 }
             } finally {
                 resetButtons(currentVoiceBtn, currentStopBtn, currentTextarea);
-                
+
                 // Очищаем только если это текущая активная запись
                 if (activeRecordingIndex === currentQuestionIndex) {
                     if (mediaRecorder && mediaRecorder.stream) {
@@ -472,10 +464,10 @@ async function startVoiceInputForQuestion(questionIndex) {
                 }
             }
         };
-        
+
         mediaRecorder.start(1000);
         console.log(`Recording started for question ${questionIndex}`);
-        
+
     } catch (error) {
         console.error('Ошибка доступа к микрофону:', error);
         if (!examFinished) {
@@ -492,7 +484,7 @@ function stopVoiceInputForQuestion(questionIndex) {
     console.log('stopVoiceInputForQuestion called for index:', questionIndex);
     console.log('mediaRecorder state:', mediaRecorder?.state);
     console.log('activeRecordingIndex:', activeRecordingIndex);
-    
+
     if (mediaRecorder && mediaRecorder.state === 'recording' && activeRecordingIndex === questionIndex) {
         mediaRecorder.stop();
     }
@@ -500,22 +492,22 @@ function stopVoiceInputForQuestion(questionIndex) {
 
 function lockExamInterface() {
     examFinished = true;
-    
+
     document.querySelectorAll('.answer-textarea').forEach(textarea => {
         textarea.disabled = true;
         textarea.style.background = '#f0f0f0';
     });
-    
+
     document.querySelectorAll('.voice-btn-small').forEach(btn => {
         btn.disabled = true;
         btn.style.opacity = '0.5';
     });
-    
+
     if (finishExamBtn) {
         finishExamBtn.disabled = true;
         finishExamBtn.style.opacity = '0.5';
     }
-    
+
     if (timerInterval) {
         clearInterval(timerInterval);
         timerInterval = null;
@@ -527,50 +519,50 @@ async function finishExam() {
 
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         console.log('Active recording detected, stopping before exam finish...');
-        
+
         // Показываем сообщение пользователю
         showWarning('⏳ Завершаем голосовой ввод...', false);
-        
+
         // Создаем Promise, который дождется окончания распознавания
         await new Promise((resolve) => {
             // Сохраняем оригинальный обработчик onstop
             const originalOnStop = mediaRecorder.onstop;
-            
+
             // Временно подменяем обработчик
             mediaRecorder.onstop = async () => {
                 console.log('Processing final recording before exam finish');
-                
+
                 // Вызываем оригинальный обработчик, если он есть
                 if (originalOnStop) {
                     await originalOnStop();
                 }
-                
+
                 // Даем время на обработку
                 setTimeout(resolve, 1000);
             };
-            
+
             // Останавливаем запись
             mediaRecorder.stop();
         });
     }
 
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     document.querySelectorAll('.answer-textarea').forEach(textarea => {
         const index = parseInt(textarea.getAttribute('data-index'));
         answers[index] = textarea.value;
     });
-    
+
     const emptyAnswers = answers.filter(a => !a || a.trim() === '').length;
     if (emptyAnswers > 0) {
         const confirmSubmit = confirm(`Вы не ответили на ${emptyAnswers} из ${questions.length} вопросов. Отправить экзамен на проверку?`);
         if (!confirmSubmit) return;
     }
-    
+
     lockExamInterface();
     finishExamBtn.textContent = 'Отправка...';
     showLoadingIndicator();
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/exam/submit?session_id=${examSession.sessionId}`, {
             method: 'POST',
@@ -580,15 +572,15 @@ async function finishExam() {
                 question_ids: questionIds
             })
         });
-        
+
         if (!response.ok) {
             throw new Error(`Ошибка ${response.status}`);
         }
-        
+
         const results = await response.json();
         hideLoadingIndicator();
         showResults(results);
-        
+
     } catch (error) {
         console.error('Ошибка:', error);
         alert(`Ошибка при отправке: ${error.message}`);
@@ -601,37 +593,37 @@ async function finishExam() {
 
 async function autoSubmitExam() {
     if (examFinished || autoSubmitTriggered === false) return;
-    
+
     console.log('⏰ Автоматическая отправка...');
     showWarning('⏰ Время вышло! Завершаем экзамен...', false);
 
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         console.log('Active recording detected, stopping before auto-submit...');
-        
+
         await new Promise((resolve) => {
             const originalOnStop = mediaRecorder.onstop;
-            
+
             mediaRecorder.onstop = async () => {
                 if (originalOnStop) {
                     await originalOnStop();
                 }
                 setTimeout(resolve, 1000);
             };
-            
+
             mediaRecorder.stop();
         });
-        
+
         await new Promise(resolve => setTimeout(resolve, 500));
     }
-    
+
     document.querySelectorAll('.answer-textarea').forEach(textarea => {
         const index = parseInt(textarea.getAttribute('data-index'));
         answers[index] = textarea.value;
     });
-    
+
     lockExamInterface();
     showLoadingIndicator();
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/exam/submit?session_id=${examSession.sessionId}`, {
             method: 'POST',
@@ -641,13 +633,13 @@ async function autoSubmitExam() {
                 question_ids: questionIds
             })
         });
-        
+
         if (!response.ok) throw new Error(`Ошибка ${response.status}`);
-        
+
         const results = await response.json();
         hideLoadingIndicator();
         showAutoSubmitResults(results);
-        
+
     } catch (error) {
         console.error('Ошибка автоотправки:', error);
         hideLoadingIndicator();
@@ -657,7 +649,7 @@ async function autoSubmitExam() {
 
 function showAutoSubmitResults(results) {
     const answeredCount = answers.filter(a => a && a.trim()).length;
-    
+
     let html = `
         <div class="results-container">
             <div class="auto-submit-banner" style="background: #ff9800; color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
@@ -682,7 +674,7 @@ function getResultsHtml(results) {
                 ${getGradeInfo(results.total_score)}
             </div>
         </div>
-        
+
         <details class="detailed-results" open>
             <summary>📋 Подробные результаты (${questions.length} вопросов)</summary>
             <table class="results-table">
@@ -710,7 +702,7 @@ function getResultsHtml(results) {
                 </tbody>
             </table>
         </details>
-        
+
         <div class="results-actions">
             <button class="btn btn-primary" onclick="clearStorageAndExit()">🏠 Завершить сессию</button>
             <button class="btn btn-secondary" onclick="window.print()">🖨️ Печать результатов</button>
@@ -726,7 +718,7 @@ function showResults(results) {
         </div>
     `;
     document.querySelector('.exam-container').innerHTML = html;
-    
+
     questionIds.forEach((qid, i) => {
         localStorage.removeItem(`exam_answer_${examSession.sessionId}_${qid || i}`);
     });
@@ -796,7 +788,7 @@ window.addEventListener('beforeunload', (event) => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         // Пытаемся остановить запись
         mediaRecorder.stop();
-        
+
         // Показываем предупреждение
         event.preventDefault();
         event.returnValue = 'Идет активная запись. Вы уверены, что хотите покинуть страницу?';
