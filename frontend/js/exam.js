@@ -8,6 +8,9 @@ let totalTimeLeft = 0;
 let timerInterval = null;
 let examFinished = false;
 let autoSubmitTriggered = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let activeRecordingIndex = null;
 
 const timerDisplay = document.getElementById('timerDisplay');
 const finishExamBtn = document.getElementById('finishExamBtn');
@@ -98,17 +101,24 @@ function loadSavedAnswers() {
 }
 
 function renderAllQuestions() {
-    questionsContainer.innerHTML = '';
+    if (!questionsContainer) {
+        console.error('questionsContainer not found');
+        return;
+    }
     
-    questions.forEach((question, index) => {
+    if (questionsContainer) {
+        questionsContainer.innerHTML = '';
+    }
+    
+    for (let index = 0; index < questions.length; index++) {
+        const question = questions[index];
         const questionBlock = document.createElement('div');
         questionBlock.className = 'question-block';
-        questionBlock.setAttribute('data-question-id', questionIds[index] || index);
         
-        // Получаем текст вопроса (поддерживаем разные форматы)
         const questionText = question.text || question.question_text || `Вопрос ${index + 1}`;
-        const isAnswered = answers[index] && answers[index].trim();
+        const isAnswered = answers[index] && answers[index].trim() !== '';
         
+        // Создаем HTML
         questionBlock.innerHTML = `
             <div class="question-header">
                 <div class="question-number">Вопрос ${index + 1} из ${questions.length}</div>
@@ -136,21 +146,36 @@ function renderAllQuestions() {
         
         questionsContainer.appendChild(questionBlock);
         
+        // Добавляем обработчики событий
         if (!examFinished) {
-            const textarea = questionBlock.querySelector(`#answer-${index}`);
-            textarea.addEventListener('input', (e) => {
-                saveAnswer(index, e.target.value);
-            });
+            const textarea = document.getElementById(`answer-${index}`);
+            const voiceBtn = questionBlock.querySelector(`.voice-btn-small[data-index="${index}"]`);
+            const stopBtn = questionBlock.querySelector(`.voice-stop-btn-small[data-index="${index}"]`);
             
-            const voiceBtn = questionBlock.querySelector('.voice-btn-small');
-            voiceBtn.addEventListener('click', () => {
-                startVoiceInputForQuestion(index);
-            });
+            if (textarea) {
+                textarea.addEventListener('input', (e) => {
+                    saveAnswer(index, e.target.value);
+                });
+            }
+            
+            if (voiceBtn) {
+                voiceBtn.addEventListener('click', () => {
+                    startVoiceInputForQuestion(index);
+                });
+            }
+            
+            if (stopBtn) {
+                stopBtn.addEventListener('click', () => {
+                    console.log('Stop button clicked for index:', index);
+                    stopVoiceInputForQuestion(index);
+                });
+            }
         }
-    });
+    }
     
     updateProgress();
 }
+
 
 function saveAnswer(questionIndex, value) {
     if (examFinished) return;
@@ -258,6 +283,221 @@ function updateTimerDisplay() {
     }
 }
 
+async function startVoiceInputForQuestion(questionIndex) {
+    if (examFinished) {
+        alert('Экзамен уже завершен');
+        return;
+    }
+    
+    // Если уже идет запись для этого вопроса - останавливаем
+    if (activeRecordingIndex === questionIndex && mediaRecorder?.state === 'recording') {
+        stopVoiceInputForQuestion(questionIndex);
+        return;
+    }
+    
+    // ★★★ Если идет запись другого вопроса - останавливаем и ЖДЕМ ★★★
+    if (mediaRecorder?.state === 'recording') {
+        console.log(`Stopping recording for question ${activeRecordingIndex} before starting ${questionIndex}`);
+        
+        // Создаем Promise, который дождется остановки записи
+        await new Promise((resolve) => {
+            const originalOnStop = mediaRecorder.onstop;
+            
+            mediaRecorder.onstop = async () => {
+                console.log(`Previous recording stopped for question ${activeRecordingIndex}`);
+                if (originalOnStop) {
+                    await originalOnStop();
+                }
+                // Даем время на очистку
+                setTimeout(resolve, 300);
+            };
+            
+            mediaRecorder.stop();
+        });
+        
+        // Принудительно очищаем состояние после остановки
+        if (mediaRecorder && mediaRecorder.stream) {
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        }
+        mediaRecorder = null;
+        audioChunks = [];
+        
+        // Сбрасываем кнопки для предыдущего вопроса
+        if (activeRecordingIndex !== null) {
+            const oldVoiceBtn = document.querySelector(`.voice-btn-small[data-index="${activeRecordingIndex}"]`);
+            const oldStopBtn = document.querySelector(`.voice-stop-btn-small[data-index="${activeRecordingIndex}"]`);
+            const oldTextarea = document.getElementById(`answer-${activeRecordingIndex}`);
+            resetButtons(oldVoiceBtn, oldStopBtn, oldTextarea);
+            if (oldVoiceBtn) oldVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
+        }
+        
+        activeRecordingIndex = null;
+    }
+    
+    // Небольшая задержка перед началом новой записи
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    if (examFinished) {
+        alert('Экзамен уже завершен');
+        return;
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+        });
+        mediaRecorder.stream = stream; // Сохраняем ссылку на stream
+        audioChunks = [];
+        activeRecordingIndex = questionIndex;
+        
+        const textarea = document.getElementById(`answer-${questionIndex}`);
+        const voiceBtn = document.querySelector(`.voice-btn-small[data-index="${questionIndex}"]`);
+        const stopBtn = document.querySelector(`.voice-stop-btn-small[data-index="${questionIndex}"]`);
+        
+        if (voiceBtn) {
+            voiceBtn.innerHTML = '⏹️ Остановить';
+            voiceBtn.disabled = false;
+        }
+        if (stopBtn) {
+            stopBtn.style.display = 'inline-block'; 
+            stopBtn.disabled = false;
+        }
+        if (textarea) {
+            textarea.style.border = '2px solid #87dbfd';
+            textarea.style.backgroundColor = '#fff5f5';
+        }
+        
+        // Очищаем chunks перед новой записью
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            console.log(`Recording stopped for question ${questionIndex}, chunks: ${audioChunks.length}`);
+            
+            // Сохраняем ссылки локально, так как глобальные могут измениться
+            const currentQuestionIndex = questionIndex;
+            const currentTextarea = textarea;
+            const currentVoiceBtn = voiceBtn;
+            const currentStopBtn = stopBtn;
+            
+            if (audioChunks.length === 0) {
+                console.warn('No audio chunks recorded');
+                resetButtons(currentVoiceBtn, currentStopBtn, currentTextarea);
+                if (currentVoiceBtn) currentVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
+                
+                // Очищаем глобальное состояние только если это текущая запись
+                if (activeRecordingIndex === currentQuestionIndex) {
+                    if (mediaRecorder && mediaRecorder.stream) {
+                        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    }
+                    mediaRecorder = null;
+                    audioChunks = [];
+                    activeRecordingIndex = null;
+                }
+                return;
+            }
+
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            if (currentVoiceBtn) {
+                currentVoiceBtn.innerHTML = '🔄 Распознавание...';
+                currentVoiceBtn.disabled = true;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', audioBlob, 'recording.webm');
+                
+                const response = await fetch(`${API_BASE_URL}/transcribe`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Ошибка распознавания');
+                }
+                
+                const data = await response.json();
+                const transcribedText = data.text;
+                console.log(`Transcribed for question ${currentQuestionIndex}:`, transcribedText);
+                
+                if (currentTextarea && transcribedText) {
+                    const currentText = currentTextarea.value;
+                    const newText = currentText + (currentText ? ' ' : '') + transcribedText;
+                    currentTextarea.value = newText;
+                    saveAnswer(currentQuestionIndex, newText);
+                    
+                    if (examFinished) {
+                        answers[currentQuestionIndex] = newText;
+                    }
+                }
+                
+                if (currentVoiceBtn) {
+                    currentVoiceBtn.innerHTML = '✅ Готово';
+                    setTimeout(() => {
+                        if (currentVoiceBtn) currentVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
+                    }, 2000);
+                }
+                
+            } catch (error) {
+                console.error('Ошибка:', error);
+                if (!examFinished) {
+                    alert('Ошибка распознавания: ' + error.message);
+                }
+                if (currentVoiceBtn) {
+                    currentVoiceBtn.innerHTML = '❌ Ошибка';
+                    setTimeout(() => {
+                        if (currentVoiceBtn) currentVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
+                    }, 2000);
+                }
+            } finally {
+                resetButtons(currentVoiceBtn, currentStopBtn, currentTextarea);
+                
+                // Очищаем только если это текущая активная запись
+                if (activeRecordingIndex === currentQuestionIndex) {
+                    if (mediaRecorder && mediaRecorder.stream) {
+                        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    }
+                    mediaRecorder = null;
+                    audioChunks = [];
+                    activeRecordingIndex = null;
+                }
+            }
+        };
+        
+        mediaRecorder.start(1000);
+        console.log(`Recording started for question ${questionIndex}`);
+        
+    } catch (error) {
+        console.error('Ошибка доступа к микрофону:', error);
+        if (!examFinished) {
+            alert('Не удалось получить доступ кмикрофону. Проверьте разрешения в браузере.');
+        }
+        // Очищаем состояние при ошибке
+        mediaRecorder = null;
+        audioChunks = [];
+        activeRecordingIndex = null;
+    }
+}
+
+function stopVoiceInputForQuestion(questionIndex) {
+    console.log('stopVoiceInputForQuestion called for index:', questionIndex);
+    console.log('mediaRecorder state:', mediaRecorder?.state);
+    console.log('activeRecordingIndex:', activeRecordingIndex);
+    
+    if (mediaRecorder && mediaRecorder.state === 'recording' && activeRecordingIndex === questionIndex) {
+        mediaRecorder.stop();
+    }
+}
+
 function lockExamInterface() {
     examFinished = true;
     
@@ -284,6 +524,37 @@ function lockExamInterface() {
 
 async function finishExam() {
     if (examFinished) return;
+
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        console.log('Active recording detected, stopping before exam finish...');
+        
+        // Показываем сообщение пользователю
+        showWarning('⏳ Завершаем голосовой ввод...', false);
+        
+        // Создаем Promise, который дождется окончания распознавания
+        await new Promise((resolve) => {
+            // Сохраняем оригинальный обработчик onstop
+            const originalOnStop = mediaRecorder.onstop;
+            
+            // Временно подменяем обработчик
+            mediaRecorder.onstop = async () => {
+                console.log('Processing final recording before exam finish');
+                
+                // Вызываем оригинальный обработчик, если он есть
+                if (originalOnStop) {
+                    await originalOnStop();
+                }
+                
+                // Даем время на обработку
+                setTimeout(resolve, 1000);
+            };
+            
+            // Останавливаем запись
+            mediaRecorder.stop();
+        });
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     document.querySelectorAll('.answer-textarea').forEach(textarea => {
         const index = parseInt(textarea.getAttribute('data-index'));
@@ -332,6 +603,26 @@ async function autoSubmitExam() {
     if (examFinished || autoSubmitTriggered === false) return;
     
     console.log('⏰ Автоматическая отправка...');
+    showWarning('⏰ Время вышло! Завершаем экзамен...', false);
+
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        console.log('Active recording detected, stopping before auto-submit...');
+        
+        await new Promise((resolve) => {
+            const originalOnStop = mediaRecorder.onstop;
+            
+            mediaRecorder.onstop = async () => {
+                if (originalOnStop) {
+                    await originalOnStop();
+                }
+                setTimeout(resolve, 1000);
+            };
+            
+            mediaRecorder.stop();
+        });
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
     
     document.querySelectorAll('.answer-textarea').forEach(textarea => {
         const index = parseInt(textarea.getAttribute('data-index'));
@@ -467,55 +758,6 @@ function initSpeechRecognition() {
     }
 }
 
-function startVoiceInputForQuestion(questionIndex) {
-    if (examFinished) {
-        alert('Экзамен уже завершен');
-        return;
-    }
-    
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        alert('Голосовой ввод не поддерживается');
-        return;
-    }
-    
-    const textarea = document.getElementById(`answer-${questionIndex}`);
-    const voiceBtn = document.querySelector(`.voice-btn-small[data-index="${questionIndex}"]`);
-    
-    if (!textarea || textarea.disabled) return;
-    
-    voiceBtn.innerHTML = '🎤 Слушаю...';
-    voiceBtn.disabled = true;
-    
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'ru-RU';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        const currentText = textarea.value;
-        const newText = currentText + (currentText ? ' ' : '') + transcript;
-        textarea.value = newText;
-        saveAnswer(questionIndex, newText);
-        voiceBtn.innerHTML = '✅ Готово';
-        setTimeout(() => {
-            voiceBtn.innerHTML = '🎙️ Голосовой ввод';
-            voiceBtn.disabled = false;
-        }, 2000);
-    };
-    
-    recognition.onerror = () => {
-        voiceBtn.innerHTML = '❌ Ошибка';
-        setTimeout(() => {
-            voiceBtn.innerHTML = '🎙️ Голосовой ввод';
-            voiceBtn.disabled = false;
-        }, 2000);
-    };
-    
-    recognition.start();
-}
-
 function showLoadingIndicator() {
     const loader = document.createElement('div');
     loader.id = 'examLoader';
@@ -535,3 +777,29 @@ function hideLoadingIndicator() {
     const loader = document.getElementById('examLoader');
     if (loader) loader.remove();
 }
+
+function resetButtons(voiceBtn, stopBtn, textarea) {
+    if (voiceBtn) {
+        voiceBtn.disabled = false;
+    }
+    if (stopBtn) {
+        stopBtn.style.display = 'none';
+        stopBtn.disabled = false;
+    }
+    if (textarea) {
+        textarea.style.border = '';
+        textarea.style.backgroundColor = '';
+    }
+}
+
+window.addEventListener('beforeunload', (event) => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        // Пытаемся остановить запись
+        mediaRecorder.stop();
+        
+        // Показываем предупреждение
+        event.preventDefault();
+        event.returnValue = 'Идет активная запись. Вы уверены, что хотите покинуть страницу?';
+        return event.returnValue;
+    }
+});

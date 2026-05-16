@@ -711,3 +711,26 @@ textarea:disabled {
         top: 10px;
     }
 }
+
+/* Стили для кнопки остановки записи */
+.voice-stop-btn-small {
+    background: #ff6b6b;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+    margin-left: 8px;
+}
+
+.voice-stop-btn-small:hover:not(:disabled) {
+    background: #ee5a52;
+    transform: scale(1.02);
+}
+
+.voice-stop-btn-small:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
