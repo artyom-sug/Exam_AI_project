@@ -19,72 +19,263 @@ const progressText = document.getElementById('progressText');
 const studentInfo = document.getElementById('studentInfo');
 const questionsContainer = document.getElementById('questionsContainer');
 
+// Функция для сохранения полного состояния
+function saveExamSessionState() {
+    if (!examSession) return;
+    
+    const state = {
+        sessionId: examSession.sessionId,
+        groupId: examSession.groupId,
+        fio: examSession.fio,
+        answers: answers,
+        questionIds: questionIds,
+        totalTimeLeft: totalTimeLeft,
+        lastUpdate: Date.now()
+    };
+    localStorage.setItem('exam_session_state', JSON.stringify(state));
+    console.log('Exam state auto-saved');
+}
+
+// Функция для восстановления состояния
+function restoreExamSessionState() {
+    const savedState = localStorage.getItem('exam_session_state');
+    if (!savedState) return false;
+    
+    try {
+        const state = JSON.parse(savedState);
+        const currentSessionId = examSession?.sessionId;
+        const isRecent = (Date.now() - state.lastUpdate) < 24 * 60 * 60 * 1000;
+        
+        if (currentSessionId === state.sessionId && isRecent) {
+            answers = state.answers || [];
+            questionIds = state.questionIds || [];
+            totalTimeLeft = state.totalTimeLeft || 0;
+            console.log('✅ Exam state automatically restored');
+            return true;
+        }
+    } catch (e) {
+        console.error('Error restoring state:', e);
+    }
+    return false;
+}
+
+// Очистка состояния
+function clearExamSessionState() {
+    localStorage.removeItem('exam_session_state');
+    localStorage.removeItem(`exam_time_left_${examSession?.sessionId}`);
+}
+
+let autoSaveInterval = null;
+
+function startAutoSave() {
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
+    
+    autoSaveInterval = setInterval(() => {
+        if (!examFinished && examSession && questions.length > 0) {
+            saveExamSessionState();
+            localStorage.setItem(`exam_time_left_${examSession.sessionId}`, totalTimeLeft.toString());
+            console.log('💾 Auto-save completed');
+        }
+    }, 10000);
+}
+
+function stopAutoSave() {
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+        autoSaveInterval = null;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    const sessionStr = localStorage.getItem('examSession');
-    if (!sessionStr) {
-        alert('Сессия не найдена. Пожалуйста, войдите заново.');
+    // ★★★ ПРОВЕРЯЕМ, БЫЛ ЛИ ЭКЗАМЕН ЗАВЕРШЕН ★★★
+    // Смотрим в sessionStorage флаг завершения
+    let completedSessionId = null;
+    
+    // Ищем любой флаг завершенного экзамена
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('exam_completed_')) {
+            completedSessionId = key.replace('exam_completed_', '');
+            break;
+        }
+    }
+    
+    // Если есть завершенный экзамен, показываем результаты
+    if (completedSessionId) {
+        console.log('Найден завершенный экзамен, загружаем результаты');
+        
+        // Восстанавливаем данные для отображения результатов
+        const savedState = localStorage.getItem('exam_session_state');
+        if (savedState) {
+            try {
+                const state = JSON.parse(savedState);
+                examSession = {
+                    sessionId: state.sessionId,
+                    groupId: state.groupId,
+                    fio: state.fio
+                };
+                questions = state.questions || [];
+                questionIds = state.questionIds || [];
+                answers = state.answers || [];
+                
+                // Показываем заглушку результатов (нужно будет загрузить реальные результаты)
+                showCachedResults();
+                return;
+            } catch(e) {
+                console.error('Error loading cached results:', e);
+            }
+        }
+        
+        // Если не удалось восстановить, перенаправляем на главную
         window.location.href = '/';
         return;
     }
-
-    examSession = JSON.parse(sessionStr);
+    // ★★★ ПРОВЕРЯЕМ, НЕ ПОКАЗЫВАЕМ ЛИ МЫ РЕЗУЛЬТАТЫ ★★★
+    const hasResultsContainer = document.querySelector('.results-container');
+    if (hasResultsContainer) {
+        console.log('Уже на странице результатов, ничего не делаем');
+        return;
+    }
+    
+    const sessionStr = localStorage.getItem('examSession');
+    const savedState = localStorage.getItem('exam_session_state');
+    
+    // Проверяем, не завершен ли экзамен
+    if (sessionStr) {
+        try {
+            const session = JSON.parse(sessionStr);
+            const isCompleted = sessionStorage.getItem('exam_completed_' + session.sessionId);
+            if (isCompleted === 'true') {
+                console.log('Экзамен уже завершен');
+                // Перенаправляем на главную
+                window.location.href = '/';
+                return;
+            }
+        } catch(e) {}
+    }
+    
+    // Восстановление сессии
+    if (!sessionStr && savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            const isRecent = (Date.now() - state.lastUpdate) < 24 * 60 * 60 * 1000;
+            const isCompleted = sessionStorage.getItem('exam_completed_' + state.sessionId);
+            
+            if (isCompleted === 'true') {
+                console.log('Сохраненная сессия уже завершена');
+                localStorage.removeItem('exam_session_state');
+                sessionStorage.removeItem('exam_completed_' + state.sessionId);
+                window.location.href = '/';
+                return;
+            }
+            
+            if (isRecent) {
+                console.log('🔄 Auto-restoring exam session...');
+                examSession = {
+                    sessionId: state.sessionId,
+                    groupId: state.groupId,
+                    fio: state.fio
+                };
+                localStorage.setItem('examSession', JSON.stringify(examSession));
+            }
+        } catch (e) {
+            console.error('Error restoring session:', e);
+        }
+    }
+    
+    // ★★★ ЕСЛИ НЕТ СЕССИИ - ПЕРЕНАПРАВЛЯЕМ, НО БЕЗ ALERT ★★★
+    if (!examSession) {
+        const newSessionStr = localStorage.getItem('examSession');
+        if (!newSessionStr) {
+            console.log('Нет сессии, перенаправление на главную');
+            window.location.href = '/';
+            return;
+        }
+        examSession = JSON.parse(newSessionStr);
+    }
+    
+    // Проверяем, не завершен ли экзамен еще раз
+    const isCompleted = sessionStorage.getItem('exam_completed_' + examSession.sessionId);
+    if (isCompleted === 'true') {
+        console.log('Экзамен завершен, перенаправление');
+        window.location.href = '/';
+        return;
+    }
+    
     studentInfo.textContent = `${examSession.fio}`;
-
     await loadExam();
-
     initSpeechRecognition();
-
+    
     if (finishExamBtn) {
         finishExamBtn.addEventListener('click', finishExam);
     }
 });
 
 async function loadExam() {
+    // ★★★ ПРОВЕРКА: если экзамен завершен, не загружаем ★★★
+    if (sessionStorage.getItem('exam_completed_' + examSession?.sessionId) === 'true') {
+        console.log('Экзамен завершен, загрузка вопросов пропущена');
+        window.location.href = '/';
+        return;
+    }
+    
     try {
         questionsContainer.innerHTML = '<div class="loading-spinner"></div><p>Загрузка вопросов...</p>';
-
-        // Правильный вызов API - session_id в URL
+        
         const response = await fetch(`${API_BASE_URL}/exam/start?session_id=${examSession.sessionId}`, {
             method: 'POST'
         });
-
+        
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Ошибка ${response.status}: ${errorText}`);
         }
-
+        
         const data = await response.json();
-
-        // Проверяем структуру ответа
         console.log('Ответ от сервера:', data);
-
+        
         if (data.questions && Array.isArray(data.questions)) {
             questions = data.questions;
             questionIds = data.question_ids || [];
         } else {
             throw new Error('Неверный формат ответа от сервера');
         }
-
+        
         if (questions.length === 0) {
             throw new Error('Нет вопросов для этого экзамена');
         }
-
+        
         answers = new Array(questions.length).fill('');
-
-        // Загружаем сохраненные ответы
-        loadSavedAnswers();
-
-        // Рассчитываем время
-        const timePerQuestion = 60; // 60 секунд на вопрос
-        const totalSeconds = questions.length * timePerQuestion;
-        totalTimeLeft = totalSeconds;
-
+        
+        // ★★★ АВТОМАТИЧЕСКИ ВОССТАНАВЛИВАЕМ СОСТОЯНИЕ ★★★
+        const restored = restoreExamSessionState();
+        
+        if (!restored) {
+            // Если не восстановили полное состояние - загружаем индивидуальные ответы
+            loadSavedAnswers();
+            
+            // Восстанавливаем время
+            const savedTimeLeft = localStorage.getItem(`exam_time_left_${examSession.sessionId}`);
+            const timePerQuestion = 60;
+            const totalSeconds = questions.length * timePerQuestion;
+            
+            if (savedTimeLeft) {
+                const timeLeft = parseInt(savedTimeLeft);
+                totalTimeLeft = (timeLeft > 0 && timeLeft < totalSeconds) ? timeLeft : totalSeconds;
+            } else {
+                totalTimeLeft = totalSeconds;
+            }
+        }
+        
         updateTimerDisplay();
         renderAllQuestions();
         startTimer();
-
-        console.log(`Загружено ${questions.length} вопросов`);
-
+        
+        // Запускаем автосохранение
+        startAutoSave();
+        
+        console.log(`✅ Загружено ${questions.length} вопросов. Восстановлено: ${restored}`);
+        
     } catch (error) {
         console.error('Ошибка:', error);
         questionsContainer.innerHTML = `<p class="error-message">Ошибка загрузки вопросов: ${error.message}<br>Проверьте, запущен ли сервер на порту 8000</p>`;
@@ -176,22 +367,16 @@ function renderAllQuestions() {
 
 function saveAnswer(questionIndex, value) {
     if (examFinished) return;
-
+    
     answers[questionIndex] = value;
     const qid = questionIds[questionIndex] || questionIndex;
     localStorage.setItem(`exam_answer_${examSession.sessionId}_${qid}`, value);
-
-    const statusEl = document.querySelector(`.question-block[data-question-id="${qid}"] .question-status`);
-    if (statusEl) {
-        if (value && value.trim()) {
-            statusEl.innerHTML = '✓ Отвечен';
-            statusEl.className = 'question-status answered';
-        } else {
-            statusEl.innerHTML = '○ Не отвечен';
-            statusEl.className = 'question-status not-answered';
-        }
+    
+    // Автосохранение состояния
+    if (examSession) {
+        saveExamSessionState();
     }
-
+    
     updateProgress();
 }
 
@@ -265,7 +450,12 @@ function updateTimerDisplay() {
     const seconds = totalTimeLeft % 60;
     const displayText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     timerDisplay.textContent = displayText;
-
+    
+    // Сохраняем время
+    if (examSession && !examFinished) {
+        localStorage.setItem(`exam_time_left_${examSession.sessionId}`, totalTimeLeft.toString());
+    }
+    
     if (totalTimeLeft <= 60) {
         timerDisplay.style.color = '#ff4444';
         timerDisplay.style.animation = 'pulse 0.5s infinite';
@@ -517,6 +707,8 @@ function lockExamInterface() {
 async function finishExam() {
     if (examFinished) return;
 
+    stopAutoSave();
+
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         console.log('Active recording detected, stopping before exam finish...');
 
@@ -579,7 +771,13 @@ async function finishExam() {
 
         const results = await response.json();
         hideLoadingIndicator();
+        localStorage.setItem(`exam_results_${examSession.sessionId}`, JSON.stringify(results));
         showResults(results);
+
+        clearExamSessionState();
+        localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);
+        localStorage.removeItem('examSession');
+        sessionStorage.setItem('exam_completed_' + examSession.sessionId, 'true');
 
     } catch (error) {
         console.error('Ошибка:', error);
@@ -593,6 +791,8 @@ async function finishExam() {
 
 async function autoSubmitExam() {
     if (examFinished || autoSubmitTriggered === false) return;
+
+    stopAutoSave();
 
     console.log('⏰ Автоматическая отправка...');
     showWarning('⏰ Время вышло! Завершаем экзамен...', false);
@@ -638,7 +838,13 @@ async function autoSubmitExam() {
 
         const results = await response.json();
         hideLoadingIndicator();
+        localStorage.setItem(`exam_results_${examSession.sessionId}`, JSON.stringify(results));
         showAutoSubmitResults(results);
+
+        clearExamSessionState();
+        localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);
+        localStorage.removeItem('examSession');
+        sessionStorage.setItem('exam_completed_' + examSession.sessionId, 'true');
 
     } catch (error) {
         console.error('Ошибка автоотправки:', error);
@@ -649,7 +855,7 @@ async function autoSubmitExam() {
 
 function showAutoSubmitResults(results) {
     const answeredCount = answers.filter(a => a && a.trim()).length;
-
+    
     let html = `
         <div class="results-container">
             <div class="auto-submit-banner" style="background: #ff9800; color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
@@ -661,6 +867,43 @@ function showAutoSubmitResults(results) {
     `;
     html += getResultsHtml(results);
     document.querySelector('.exam-container').innerHTML = html;
+    
+    // ★★★ ОЧИЩАЕМ ВСЕ ДАННЫЕ ★★★
+    clearExamSessionState();
+    localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);
+    localStorage.removeItem('examSession');
+    sessionStorage.setItem('exam_completed_' + examSession.sessionId, 'true');
+}
+
+function showCachedResults() {
+    // Пытаемся загрузить сохраненные результаты
+    const savedResults = localStorage.getItem(`exam_results_${examSession?.sessionId}`);
+    
+    if (savedResults) {
+        try {
+            const results = JSON.parse(savedResults);
+            showResults(results);
+            return;
+        } catch(e) {}
+    }
+    
+    // Если нет сохраненных результатов, показываем сообщение
+    document.querySelector('.exam-container').innerHTML = `
+        <div class="results-container">
+            <div class="total-score-badge">
+                <div class="score-circle">
+                    <span class="score-value">—</span>
+                    <span class="score-max">/ 100</span>
+                </div>
+            </div>
+            <p style="text-align: center; margin: 40px;">📊 Экзамен завершен. Результаты были отправлены преподавателю.</p>
+            <div class="results-actions">
+                <button class="btn-exit" onclick="clearStorageAndExit()">
+                    🏠 Завершить сессию
+                </button>
+            </div>
+        </div>
+    `;
 }
 
 function getResultsHtml(results) {
@@ -705,7 +948,6 @@ function getResultsHtml(results) {
 
         <div class="results-actions">
             <button class="btn btn-primary" onclick="clearStorageAndExit()">🏠 Завершить сессию</button>
-            <button class="btn btn-secondary" onclick="window.print()">🖨️ Печать результатов</button>
         </div>
     `;
 }
@@ -718,13 +960,34 @@ function showResults(results) {
         </div>
     `;
     document.querySelector('.exam-container').innerHTML = html;
-
+    
+    // Очищаем все сохраненные данные
     questionIds.forEach((qid, i) => {
         localStorage.removeItem(`exam_answer_${examSession.sessionId}_${qid || i}`);
     });
+    
+    // ★★★ ОЧИЩАЕМ СОСТОЯНИЕ СЕССИИ ★★★
+    clearExamSessionState();
+    localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);
+    
+    // ★★★ УДАЛЯЕМ СЕССИЮ ИЗ localStorage ★★★
+    localStorage.removeItem('examSession');
+    
+    // ★★★ ПОМЕЧАЕМ, ЧТО ЭКЗАМЕН ЗАВЕРШЕН ★★★
+    sessionStorage.setItem('exam_completed_' + examSession.sessionId, 'true');
+    
+    console.log('🧹 Все данные экзамена очищены');
 }
 
+// Вызывается при нажатии "Завершить сессию" на странице результатов
 function clearStorageAndExit() {
+    // Очищаем всё
+    if (examSession) {
+        clearExamSessionState();
+        localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);
+        localStorage.removeItem(`exam_results_${examSession.sessionId}`);
+        sessionStorage.removeItem('exam_completed_' + examSession.sessionId);
+    }
     localStorage.removeItem('examSession');
     window.location.href = '/';
 }
@@ -733,7 +996,6 @@ function getGradeInfo(score) {
     if (score >= 90) return '<span class="grade-excellent">🎉 Отлично!</span>';
     if (score >= 75) return '<span class="grade-good">👍 Хорошо!</span>';
     if (score >= 60) return '<span class="grade-satisfactory">📚 Удовлетворительно</span>';
-    if (score >= 40) return '<span class="grade-poor">📖 Требуется доработка</span>';
     return '<span class="grade-fail">⚠️ Неудовлетворительно</span>';
 }
 
@@ -785,13 +1047,18 @@ function resetButtons(voiceBtn, stopBtn, textarea) {
 }
 
 window.addEventListener('beforeunload', (event) => {
+    // Если идет запись - предупреждаем
     if (mediaRecorder && mediaRecorder.state === 'recording') {
-        // Пытаемся остановить запись
         mediaRecorder.stop();
-
-        // Показываем предупреждение
         event.preventDefault();
         event.returnValue = 'Идет активная запись. Вы уверены, что хотите покинуть страницу?';
         return event.returnValue;
+    }
+    
+    // Сохраняем состояние экзамена
+    if (!examFinished && examSession && questions.length > 0) {
+        saveExamSessionState();
+        localStorage.setItem(`exam_time_left_${examSession.sessionId}`, totalTimeLeft.toString());
+        console.log('💾 Saved before page unload');
     }
 });
