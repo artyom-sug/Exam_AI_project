@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "greptile": {
+      "command": "npx",
+      "args": ["greptile-mcp-server"],
+      "env": {
+        "GREPTILE_API_KEY": "F24OaWiLVQ7n9bz2gPz0XkuCtWvx1hpRVO8gSGvAbuAkm3j8",
+        "GITHUB_TOKEN": "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"
+      }
+    }
+  }
+}
