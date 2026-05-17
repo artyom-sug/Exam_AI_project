@@ -193,8 +193,8 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
         window.location.href = '/pages/teacher.html';
         
     } catch (error) {
-        console.error('Ошибка:', error);
-        showError('LoginError', error.message || 'Ошибка подключения к серверу');
+    console.error('Ошибка:', error);
+    showError('teacherLoginError', error.message || 'Ошибка подключения к серверу');
     } finally {
         setLoading(submitBtn, false);
     }

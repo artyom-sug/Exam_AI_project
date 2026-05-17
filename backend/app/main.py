@@ -371,6 +371,7 @@ async def submit_exam(
     
     session_data = exam_sessions_questions.get(session_id, {})
     question_ids = session_data.get("question_ids", [])
+    session_questions = session_data.get("questions", [])  # ДОБАВИТЬ ЭТУ СТРОКУ
     
     results = []
     total = 0
@@ -379,6 +380,9 @@ async def submit_exam(
         expected_answer = None
         question_text = f"Вопрос {i+1}"
         question_id = None
+        
+        if i < len(session_questions):
+            question_text = session_questions[i].text 
         
         if i < len(question_ids) and question_ids[i] != -1:
             db_question = db.query(models.QuestionBank).filter(
