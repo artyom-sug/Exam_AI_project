@@ -3,7 +3,7 @@ const API_BASE_URL = 'http://localhost:8000/api';
 let examSession = null;
 let questions = [];
 let questionIds = [];
-let answers = [];
+let answers = {};
 let totalTimeLeft = 0;
 let timerInterval = null;
 let examFinished = false;
@@ -47,7 +47,7 @@ function restoreExamSessionState() {
         const isRecent = (Date.now() - state.lastUpdate) < 24 * 60 * 60 * 1000;
         
         if (currentSessionId === state.sessionId && isRecent) {
-            answers = state.answers || [];
+            answers = state.answers || {};  // ← теперь объект, а не массив
             questionIds = state.questionIds || [];
             totalTimeLeft = state.totalTimeLeft || 0;
             console.log('✅ Exam state automatically restored');
@@ -63,6 +63,7 @@ function restoreExamSessionState() {
 function clearExamSessionState() {
     localStorage.removeItem('exam_session_state');
     localStorage.removeItem(`exam_time_left_${examSession?.sessionId}`);
+    sessionStorage.removeItem(`exam_questions_${examSession?.sessionId}`);
 }
 
 let autoSaveInterval = null;
@@ -179,17 +180,30 @@ async function loadExam() {
     try {
         questionsContainer.innerHTML = '<div class="loading-spinner"></div><p>Загрузка вопросов...</p>';
         
-        const response = await fetch(`${API_BASE_URL}/exam/start?session_id=${examSession.sessionId}`, {
-            method: 'POST'
-        });
+        const cachedQuestions = sessionStorage.getItem(`exam_questions_${examSession.sessionId}`);
         
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Ошибка ${response.status}: ${errorText}`);
+        let data;
+        
+        if (cachedQuestions) {
+            console.log('📦 Загружаем вопросы из кэша');
+            data = JSON.parse(cachedQuestions);
+        } else {
+            console.log('🌐 Запрашиваем вопросы с сервера');
+            const response = await fetch(`${API_BASE_URL}/exam/start?session_id=${examSession.sessionId}`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Ошибка ${response.status}: ${errorText}`);
+            }
+            
+            data = await response.json();
+            
+            // ✅ Сохраняем в кэш
+            sessionStorage.setItem(`exam_questions_${examSession.sessionId}`, JSON.stringify(data));
+            console.log('💾 Вопросы сохранены в кэш');
         }
-        
-        const data = await response.json();
-        console.log('Ответ от сервера:', data);
         
         if (data.questions && Array.isArray(data.questions)) {
             questions = data.questions;
@@ -201,6 +215,9 @@ async function loadExam() {
         if (questions.length === 0) {
             throw new Error('Нет вопросов для этого экзамена');
         }
+        
+        // ✅ Восстанавливаем ответы из localStorage
+        restoreAnswers();  // ← вызываем новую функцию
         
         answers = new Array(questions.length).fill('');
         
@@ -239,6 +256,21 @@ async function loadExam() {
     }
 }
 
+function restoreAnswers() {
+    // Очищаем текущие ответы
+    answers = {};
+    
+    for (let i = 0; i < questions.length; i++) {
+        const qid = questionIds[i] || `temp_${i}`;
+        const savedAnswer = localStorage.getItem(`exam_answer_${examSession.sessionId}_${qid}`);
+        if (savedAnswer) {
+            answers[qid] = savedAnswer;
+        }
+    }
+    
+    console.log(`✅ Восстановлено ${Object.keys(answers).length} ответов`);
+}
+
 function loadSavedAnswers() {
     for (let i = 0; i < questions.length; i++) {
         const saved = localStorage.getItem(`exam_answer_${examSession.sessionId}_${questionIds[i] || i}`);
@@ -260,6 +292,7 @@ function renderAllQuestions() {
 
     for (let index = 0; index < questions.length; index++) {
         const question = questions[index];
+        const questionId = questionIds[index] || `temp_${index}`;   
         const questionBlock = document.createElement('div');
         questionBlock.className = 'question-block';
 
@@ -299,7 +332,7 @@ function renderAllQuestions() {
 
             if (textarea) {
                 textarea.addEventListener('input', (e) => {
-                    saveAnswer(index, e.target.value);
+                    saveAnswer(questionId, e.target.value);
                 });
             }
 
@@ -322,23 +355,26 @@ function renderAllQuestions() {
 }
 
 
-function saveAnswer(questionIndex, value) {
+function saveAnswer(questionId, value) {
     if (examFinished) return;
     
-    answers[questionIndex] = value;
-    const qid = questionIds[questionIndex] || questionIndex;
-    localStorage.setItem(`exam_answer_${examSession.sessionId}_${qid}`, value);
-    
-    // Автосохранение состояния
-    if (examSession) {
-        saveExamSessionState();
-    }
-    
+    answers[questionId] = value;
+    localStorage.setItem(`exam_answer_${examSession.sessionId}_${questionId}`, value);
+    saveExamSessionState();
     updateProgress();
 }
 
 function updateProgress() {
-    const answeredCount = answers.filter(a => a && a.trim()).length;
+    // Подсчёт непустых ответов в объекте
+    let answeredCount = 0;
+    for (let i = 0; i < questions.length; i++) {
+        const qid = questionIds[i] || `temp_${i}`;
+        const answer = answers[qid];
+        if (answer && answer.trim()) {
+            answeredCount++;
+        }
+    }
+    
     const percent = (answeredCount / questions.length) * 100;
     progressBar.style.width = `${percent}%`;
     progressText.textContent = `Заполнено: ${answeredCount} из ${questions.length} вопросов`;
@@ -712,12 +748,18 @@ async function finishExam() {
     finishExamBtn.textContent = 'Отправка...';
     showLoadingIndicator();
 
+    const answersArray = [];
+    for (let i = 0; i < questions.length; i++) {
+        const qid = questionIds[i] || `temp_${i}`;
+        answersArray.push(answers[qid] || '');
+    }
+    
     try {
         const response = await fetch(`${API_BASE_URL}/exam/submit?session_id=${examSession.sessionId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                answers: answers,
+                answers: answersArray,  // ← отправляем массив
                 question_ids: questionIds
             })
         });
@@ -779,13 +821,18 @@ async function autoSubmitExam() {
 
     lockExamInterface();
     showLoadingIndicator();
-
+    const answersArray = [];
+        for (let i = 0; i < questions.length; i++) {
+            const qid = questionIds[i] || `temp_${i}`;
+            answersArray.push(answers[qid] || '');
+        }
+        
     try {
         const response = await fetch(`${API_BASE_URL}/exam/submit?session_id=${examSession.sessionId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                answers: answers,
+                answers: answersArray,
                 question_ids: questionIds
             })
         });
@@ -889,7 +936,7 @@ function showResults(results) {
     questionIds.forEach((qid, i) => {
         localStorage.removeItem(`exam_answer_${examSession.sessionId}_${qid || i}`);
     });
-    
+    sessionStorage.removeItem(`exam_questions_${examSession.sessionId}`);
     // ★★★ ОЧИЩАЕМ СОСТОЯНИЕ СЕССИИ ★★★
     clearExamSessionState();
     localStorage.removeItem(`exam_time_left_${examSession.sessionId}`);

@@ -27,7 +27,7 @@ app = FastAPI(title="Exam System", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["http://127.0.0.1:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -282,6 +282,13 @@ async def start_exam(
     session_id: str,
     db: Session = Depends(get_db)
 ):
+    if session_id in exam_sessions_questions:
+        session_data = exam_sessions_questions[session_id]
+        return schemas.ExamStartResponse(
+            questions=session_data["questions"],
+            question_ids=session_data["question_ids"]
+        )
+    
     student = db.query(models.Student).filter(
         models.Student.exam_session_id == session_id
     ).first()
