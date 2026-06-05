@@ -564,6 +564,39 @@ body {
     color: #87dbfd;
 }
 
+.answer-comment {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #f5f5f5;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.4;
+}
+
+.answer-score-edit {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.answer-score-edit label {
+    font-weight: 600;
+    color: #555;
+}
+
+.score-input {
+    width: 70px;
+    padding: 8px 10px;
+    border: 2px solid #87dbfd;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+}
+
 /* Адаптив */
 @media (max-width: 768px) {
     body {

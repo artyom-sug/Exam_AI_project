@@ -106,3 +106,7 @@ class QuestionBankUploadResponse(BaseModel):
     skipped: int
     errors: List[str]
 
+class AnswerScoreUpdate(BaseModel):
+    score: Optional[float] = None
+    comment: Optional[str] = None
+

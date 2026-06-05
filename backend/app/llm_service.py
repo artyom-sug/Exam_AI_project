@@ -114,40 +114,53 @@ class LLMService:
         
         context_part = f"\n\nМатериал лекции для проверки:\n{context[:2000]}" if context else ""
         
+        if not answer or not answer.strip():
+            return {
+                "score": 0.0,
+                "comment": "Ответ не предоставлен.",
+                "raw_response": ""
+            }
+        
         base_prompt = f"""
-Ты - экзаменатор. Оцени ответ студента на вопрос.
+Ты - доброжелательный экзаменатор. Оцени ответ студента на вопрос.
 
 Вопрос: {question}
 {context_part}
 
-Критерии оценки:
-- 90-100: Полный, точный ответ с примерами
-- 70-89: Хороший ответ, есть небольшие упущения
-- 50-69: Ответ частичный, есть ошибки
-- 0-49: Отсутствие ответа, ответ неверный или слишком краткий
+ВАЖНО: Будь снисходителен. Студент может выражать мысль своими словами.
+Поощряй попытки ответить, даже если ответ неполный.
+
+Критерии оценки (гибкие):
+- 85-100: Понята суть, раскрыты ключевые моменты
+- 70-84: Хорошее понимание, есть небольшие упущения
+- 55-69: Частичное понимание, основные идеи уловлены
+- 40-54: Слабое понимание, но есть правильные элементы
+- 0-39: Ответ практически отсутствует или полностью неверен
+
+По умолчанию ставь не ниже 50, если студент хоть что-то написал по теме.
 
 Формат ответа (строго):
 Оценка: X
-Комментарий: текст
+Комментарий: текст (начни с похвалы, затем укажи, что можно улучшить)
 """
         
-        response = self.generate(base_prompt, temperature=0.3, is_student_answer=True, original_answer=answer)
+        response = self.generate(base_prompt, temperature=0.5, is_student_answer=True, original_answer=answer)
         
-        score = 50
-        comment = "Не удалось оценить ответ"
+        score = 60
+        comment = "Старайтесь подробнее раскрывать тему в следующих вопросах."
         
         try:
-            lines = response.strip().split('\n')
-            for line in lines:
-                if 'Оценка:' in line or 'Оценка :' in line:
-                    score_str = line.split(':')[-1].strip()
-                    numbers = re.findall(r'\d+', score_str)
-                    if numbers:
-                        score = min(100, max(0, int(numbers[0])))
-                elif 'Комментарий:' in line or 'Комментарий :' in line:
-                    comment = line.split(':', 1)[-1].strip()
-                    if len(comment) > 300:
-                        comment = comment[:300]
+            score_match = re.search(r'Оценка:\s*(\d+)', response)
+            if score_match:
+                score = min(100, max(40, int(score_match.group(1))))
+            elif len(answer.strip()) > 50:
+                score = 65
+            elif len(answer.strip()) > 20:
+                score = 50
+            
+            comment_match = re.search(r'Комментарий:\s*(.+?)(?=$)', response, re.DOTALL)
+            if comment_match:
+                comment = comment_match.group(1).strip()[:300]
         except Exception as e:
             logger.error(f"Error parsing evaluation: {str(e)}")
         
@@ -162,31 +175,47 @@ class LLMService:
         
         context = "\n\n".join(relevant_chunks[:3])
         
+        if not answer or not answer.strip():
+            return {"score": 0.0, "comment": "Ответ не предоставлен."}
+        
         base_prompt = f"""
-Ты - экзаменатор. Проверь ответ студента, используя материалы лекции.
+Ты - доброжелательный экзаменатор. Проверь ответ студента, используя материалы лекции.
 
 Материал из лекции:
 {context}
 
 Вопрос: {question}
 
-Оцени ответ от 0 до 100 баллов, сравнивая с материалом лекции.
-Напиши краткий комментарий, указав, что упущено или что неверно.
+ВАЖНО: Будь снисходителен. Студент может выражать мысль своими словами, не обязательно дословно.
+Даже частичное понимание темы заслуживает хорошей оценки.
+
+Критерии (гибкие):
+- 85-100: Понята суть, ответ соответствует материалу лекции
+- 70-84: Хорошее понимание, есть небольшие упущения
+- 55-69: Частичное понимание, основные идеи уловлены
+- 40-54: Слабое понимание, но есть правильные элементы
+- 0-39: Ответ практически отсутствует или полностью неверен
+
+По умолчанию ставь не ниже 50, если студент хоть что-то написал по теме.
 
 Формат ответа:
 Оценка: X
-Комментарий: текст
+Комментарий: текст (начни с похвалы, затем укажи, что можно улучшить)
 """
         
-        response = self.generate(base_prompt, temperature=0.3, is_student_answer=True, original_answer=answer)
+        response = self.generate(base_prompt, temperature=0.5, is_student_answer=True, original_answer=answer)
         
-        score = 50
-        comment = "Оценка требует проверки"
+        score = 60
+        comment = "Старайтесь подробнее раскрывать тему в следующих вопросах."
         
         try:
             score_match = re.search(r'Оценка:\s*(\d+)', response)
             if score_match:
-                score = min(100, max(0, int(score_match.group(1))))
+                score = min(100, max(40, int(score_match.group(1))))
+            elif len(answer.strip()) > 50:
+                score = 65
+            elif len(answer.strip()) > 20:
+                score = 50
             
             comment_match = re.search(r'Комментарий:\s*(.+?)(?=$)', response, re.DOTALL)
             if comment_match:
@@ -197,18 +226,14 @@ class LLMService:
         return {"score": float(score), "comment": comment}
 
     def evaluate_answer_with_expected(self, question: str, answer: str, expected_answer: str) -> Dict[str, Any]:
-
         if not answer or answer.strip() == "":
             return {
                 "score": 0.0,
                 "comment": "Ответ не предоставлен. За вопрос выставлено 0 баллов."
             }
         
-        """
-        Оценка ответа студента с сравнением с ожидаемым ответом из базы
-        """
         prompt = f"""
-    Ты - экзаменатор. Сравни ответ студента с ожидаемым правильным ответом.
+    Ты - доброжелательный экзаменатор. Сравни ответ студента с ожидаемым правильным ответом.
 
     Вопрос: {question}
 
@@ -218,28 +243,41 @@ class LLMService:
     ОТВЕТ СТУДЕНТА:
     {answer}
 
-    Оцени ответ студента от 0 до 100 баллов, сравнивая с ожидаемым ответом.
-    Критерии:
-    - 90-100: Ответ близок к ожидаемому, все ключевые моменты раскрыты
-    - 70-89: Ответ хороший, но есть небольшие упущения
-    - 50-69: Ответ частичный, много упущений
-    - 0-49: Отсутствие ответа, ответ неверный или слишком краткий
+    ВАЖНО: Будь снисходителен к студенту. Оценивай ответ щедро, учитывая:
+    - Студент может выражать мысль своими словами, не обязательно дословно
+    - Даже частичное понимание темы заслуживает хорошей оценки
+    - Поощряй попытки ответить, даже если ответ неполный
+
+    Критерии оценки (БОЛЕЕ ГИБКИЕ):
+    - 85-100: Студент понял суть, ответ близок к ожидаемому, раскрыты ключевые моменты
+    - 70-84: Хорошее понимание, но есть некоторые упущения или неточности
+    - 55-69: Частичное понимание, основные идеи уловлены
+    - 40-54: Слабое понимание, но есть правильные элементы
+    - 0-39: Ответ практически отсутствует или полностью неверен
+
+    По умолчанию ставь оценку не ниже 50, если студент хоть что-то написал по теме.
 
     Формат ответа (строго):
     Оценка: X
-    Комментарий: текст (укажи, что упущено или неверно)
+    Комментарий: текст (начни с похвалы, затем укажи, что можно улучшить)
     """
         
-        response = self.generate(prompt, temperature=0.3, is_student_answer=True, original_answer=answer)
+        response = self.generate(prompt, temperature=0.5, is_student_answer=True, original_answer=answer)
         
-        score = 0
-        comment = "Не удалось оценить ответ"
+        score = 60  # базовая оценка вместо 0
+        comment = "Старайтесь подробнее раскрывать тему в следующих вопросах."
         
         try:
             import re
             score_match = re.search(r'Оценка:\s*(\d+)', response)
             if score_match:
-                score = min(100, max(0, int(score_match.group(1))))
+                score = min(100, max(40, int(score_match.group(1))))  # минимум 40 баллов
+            else:
+                # Если не удалось распарсить, даем базовую оценку на основе длины ответа
+                if len(answer.strip()) > 50:
+                    score = 65
+                elif len(answer.strip()) > 20:
+                    score = 50
             
             comment_match = re.search(r'Комментарий:\s*(.+?)(?=$)', response, re.DOTALL)
             if comment_match:

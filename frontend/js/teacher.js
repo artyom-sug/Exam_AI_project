@@ -3,6 +3,8 @@ const USE_MOCK = false;
 
 let currentGroupResults = [];
 let allResults = [];
+let currentStudentId = null;
+let isGradingMode = false;
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('closeResultsModalBtn').addEventListener('click', () => closeModal('resultsModal'));
     document.getElementById('closeAnswersModalBtn').addEventListener('click', () => closeModal('studentAnswersModal'));
     document.getElementById('closeAnswersModal').addEventListener('click', () => closeModal('studentAnswersModal'));
+    document.getElementById('saveGradesBtn')?.addEventListener('click', saveGrades);
     
     // Обработка источника вопросов
     const autoRadio = document.querySelector('input[value="auto"]');
@@ -129,18 +132,62 @@ async function createExam(e) {
             document.getElementById('questionsFileList').innerHTML = '';
         } else {
             const token = localStorage.getItem('token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+            
             const response = await fetch(`${API_BASE_URL}/teacher/exams/create`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { ...headers, 'Content-Type': 'application/json' },
                 body: JSON.stringify(examData)
             });
             
-            if (!response.ok) throw new Error('Ошибка создания экзамена');
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.detail || 'Ошибка создания экзамена');
+            }
             
-            alert(`Экзамен для группы "${roomKey}" успешно создан!`);
+            const examResult = await response.json();
+            const groupId = examResult.id;
+            
+            for (const file of lectureFiles) {
+                const formData = new FormData();
+                formData.append('file', file);
+                const uploadRes = await fetch(`${API_BASE_URL}/groups/${groupId}/upload-lecture`, {
+                    method: 'POST',
+                    headers,
+                    body: formData
+                });
+                if (!uploadRes.ok) {
+                    const err = await uploadRes.json().catch(() => ({}));
+                    throw new Error(`Ошибка загрузки лекции "${file.name}": ${err.detail || uploadRes.statusText}`);
+                }
+            }
+            
+            if (questionSource === 'manual' && questionsFile) {
+                const ext = questionsFile.name.split('.').pop().toLowerCase();
+                const formData = new FormData();
+                formData.append('file', questionsFile);
+                
+                let uploadUrl;
+                if (ext === 'json') {
+                    uploadUrl = `${API_BASE_URL}/groups/${groupId}/questions/upload-json`;
+                } else if (ext === 'csv' || ext === 'txt') {
+                    uploadUrl = `${API_BASE_URL}/groups/${groupId}/questions/upload-csv`;
+                } else {
+                    throw new Error('Для ручных вопросов поддерживаются форматы JSON, CSV и TXT');
+                }
+                
+                const qRes = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers,
+                    body: formData
+                });
+                if (!qRes.ok) {
+                    const err = await qRes.json().catch(() => ({}));
+                    throw new Error(`Ошибка загрузки вопросов: ${err.detail || qRes.statusText}`);
+                }
+            }
+            
+            alert(`Экзамен для группы "${roomKey}" успешно создан! Ключ доступа: ${examResult.access_key}`);
             closeModal('createExamModal');
             document.getElementById('createExamForm').reset();
             document.getElementById('lectureFilesList').innerHTML = '';
@@ -175,6 +222,7 @@ async function loadGroups() {
             if (!response.ok) throw new Error('Ошибка загрузки групп');
             const groups = await response.json();
             const select = document.getElementById('groupSelect');
+            select.innerHTML = '<option value="">-- Выберите группу --</option>';
             groups.forEach(group => {
                 const option = document.createElement('option');
                 option.value = group.id;
@@ -184,6 +232,7 @@ async function loadGroups() {
         }
     } catch (error) {
         console.error('Ошибка:', error);
+        alert('Ошибка загрузки групп. Войдите в аккаунт заново.');
     }
 }
 
@@ -312,35 +361,115 @@ function updateStats(results) {
     document.getElementById('passedCount').textContent = `${passed} / ${results.length}`;
 }
 
-function viewStudentAnswers(studentId) {
+function viewStudentAnswers(studentId, grading = false) {
     const student = allResults.find(s => s.id === studentId);
     if (!student) return;
+    
+    currentStudentId = studentId;
+    isGradingMode = grading;
     
     document.getElementById('studentAnswersName').textContent = student.name;
     document.getElementById('studentAnswersScore').textContent = 
         `Балл: ${student.score} / 100 · Ответил на вопросов: ${student.answered} / ${student.total}`;
     
     const answersList = document.getElementById('answersList');
-    answersList.innerHTML = student.answers.map((ans, idx) => `
-        <div class="answer-item">
+    answersList.innerHTML = student.answers.map((ans, idx) => {
+        const studentAnswer = ans.student_answer || ans.studentAnswer || '—';
+        const correctAnswer = ans.correct_answer || ans.correctAnswer || '—';
+        const score = ans.score ?? 0;
+        
+        const scoreBlock = grading
+            ? `<div class="answer-score-edit">
+                <label>Оценка:</label>
+                <input type="number" class="score-input" data-answer-id="${ans.id}" 
+                       min="0" max="100" value="${score}" step="1">
+                <span>/ 100</span>
+               </div>`
+            : `<div class="answer-score">Оценка: ${score} / 100</div>`;
+        
+        return `
+        <div class="answer-item" data-answer-id="${ans.id}">
             <div class="answer-question">Вопрос ${idx + 1}: ${ans.question}</div>
             <div class="answer-student">
                 <div class="answer-student-label">📝 Ответ студента:</div>
-                <div class="answer-student-text">${ans.studentAnswer}</div>
+                <div class="answer-student-text">${studentAnswer}</div>
             </div>
+            ${correctAnswer !== '—' ? `
             <div class="answer-correct">
-                <div class="answer-correct-label">✅ Правильный ответ:</div>
-                <div class="answer-correct-text">${ans.correctAnswer}</div>
-            </div>
-            <div class="answer-score">Оценка: ${ans.score} / 100</div>
-        </div>
-    `).join('');
+                <div class="answer-correct-label">✅ Эталонный ответ:</div>
+                <div class="answer-correct-text">${correctAnswer}</div>
+            </div>` : ''}
+            ${ans.comment ? `<div class="answer-comment">💬 ${ans.comment}</div>` : ''}
+            ${scoreBlock}
+        </div>`;
+    }).join('');
+    
+    const saveBtn = document.getElementById('saveGradesBtn');
+    if (saveBtn) saveBtn.style.display = grading ? 'inline-block' : 'none';
     
     openModal('studentAnswersModal');
 }
 
 function gradeStudent(studentId) {
-    viewStudentAnswers(studentId);
+    viewStudentAnswers(studentId, true);
+}
+
+async function saveGrades() {
+    const groupId = document.getElementById('groupSelect').value;
+    if (!groupId || !currentStudentId) return;
+    
+    const token = localStorage.getItem('token');
+    const scoreInputs = document.querySelectorAll('.score-input');
+    const saveBtn = document.getElementById('saveGradesBtn');
+    
+    saveBtn.textContent = 'Сохранение...';
+    saveBtn.disabled = true;
+    
+    try {
+        let newTotal = 0;
+        let count = 0;
+        
+        for (const input of scoreInputs) {
+            const answerId = input.dataset.answerId;
+            const score = parseFloat(input.value);
+            
+            const response = await fetch(`${API_BASE_URL}/groups/${groupId}/answers/${answerId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ score })
+            });
+            
+            if (!response.ok) throw new Error('Ошибка сохранения оценки');
+            const result = await response.json();
+            newTotal = result.student_total_score;
+            count++;
+        }
+        
+        const student = allResults.find(s => s.id === currentStudentId);
+        if (student) {
+            student.score = newTotal;
+            scoreInputs.forEach(input => {
+                const ans = student.answers.find(a => String(a.id) === input.dataset.answerId);
+                if (ans) ans.score = parseFloat(input.value);
+            });
+        }
+        
+        document.getElementById('studentAnswersScore').textContent = 
+            `Балл: ${newTotal} / 100 · Ответил на вопросов: ${student?.answered || 0} / ${student?.total || 0}`;
+        
+        renderResultsTable(currentGroupResults);
+        updateStats(currentGroupResults);
+        alert('Оценки успешно сохранены!');
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Ошибка при сохранении оценок: ' + error.message);
+    } finally {
+        saveBtn.textContent = 'Сохранить оценки';
+        saveBtn.disabled = false;
+    }
 }
 
 function logout() {

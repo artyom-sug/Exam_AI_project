@@ -1,3 +1,4 @@
+import json
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -27,7 +28,7 @@ app = FastAPI(title="Exam System", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000"],
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -94,7 +95,7 @@ async def teacher_login(
             detail="Incorrect login or password"
         )
     
-    access_token = auth.create_access_token(data={"sub": teacher.id})
+    access_token = auth.create_access_token(data={"sub": str(teacher.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/api/teacher/me", response_model=schemas.TeacherResponse)
@@ -219,6 +220,13 @@ async def upload_lecture(
     )
     db.add(lecture)
     db.commit()
+    db.refresh(lecture)
+    
+    if lecture.text_content:
+        try:
+            embeddings_service.process_lecture(db, lecture.id, lecture.text_content)
+        except Exception as e:
+            logger.warning(f"Failed to process embeddings for lecture {lecture.id}: {e}")
     
     return {"message": "Lecture uploaded successfully", "id": lecture.id}
 
@@ -522,16 +530,19 @@ async def create_exam(
     if not room_key:
         raise HTTPException(status_code=400, detail="room_key required")
     
+    room_key = room_key.upper()
     existing = db.query(models.Group).filter(models.Group.access_key == room_key).first()
     if existing:
         raise HTTPException(status_code=400, detail="Group with this key already exists")
     
+    time_per_question = max(30, (duration_minutes * 60) // max(questions_count, 1))
+    
     group = models.Group(
         name=room_key,
         teacher_id=current_teacher.id,
-        access_key=room_key,
+        access_key=room_key.upper(),
         questions_count=questions_count,
-        time_per_question=60,  # duration_minutes * 60 / questions_count
+        time_per_question=time_per_question,
         use_auto_generation=1 if question_source == "auto" else 0
     )
     db.add(group)
@@ -739,6 +750,7 @@ async def get_group_results(
             ).first() if answer.question_id else None
             
             student_answers.append({
+                "id": answer.id,
                 "question": answer.question_text,
                 "student_answer": answer.student_answer,
                 "correct_answer": question.expected_answer if question else "",
@@ -756,3 +768,47 @@ async def get_group_results(
         })
     
     return results
+
+@app.put("/api/groups/{group_id}/answers/{answer_id}")
+async def update_answer_score(
+    group_id: int,
+    answer_id: int,
+    update_data: schemas.AnswerScoreUpdate,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    answer = db.query(models.Answer).join(models.Student).filter(
+        models.Answer.id == answer_id,
+        models.Student.group_id == group_id
+    ).first()
+    
+    if not answer:
+        raise HTTPException(status_code=404, detail="Answer not found")
+    
+    if update_data.score is not None:
+        answer.score = min(100, max(0, update_data.score))
+    if update_data.comment is not None:
+        answer.comment = update_data.comment
+    
+    db.commit()
+    db.refresh(answer)
+    
+    student_answers = db.query(models.Answer).filter(
+        models.Answer.student_id == answer.student_id
+    ).all()
+    total_score = sum(a.score or 0 for a in student_answers) / len(student_answers) if student_answers else 0
+    
+    return {
+        "answer_id": answer.id,
+        "score": answer.score,
+        "comment": answer.comment,
+        "student_total_score": round(total_score, 1)
+    }
