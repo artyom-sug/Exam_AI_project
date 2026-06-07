@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-# Базовые пути
 BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 LECTURES_DIR = UPLOAD_DIR / "lectures"

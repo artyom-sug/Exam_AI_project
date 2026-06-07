@@ -33,7 +33,7 @@ def init_db():
                 access_key="ПМИ-241",
                 questions_count=10,
                 time_per_question=5400,
-                use_auto_generation=0  # 0 - использовать готовые вопросы из БД
+                use_auto_generation=0
             )
             db.add(group)
             db.commit()

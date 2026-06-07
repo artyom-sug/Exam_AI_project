@@ -1,34 +1,4 @@
 const API_BASE_URL = 'http://localhost:8000/api';
-const USE_MOCK = false;  
-
-const MOCK_API = {
-    async studentValidate(fio, key) {
-        await delay(800);
-        if (key === 'TEST123' || key === 'DEMO2024' || key === 'ПМИ-б-о-241') {
-            return {
-                session_id: 'mock_session_' + Date.now(),
-                group_id: 1,
-                fio: fio
-            };
-        }
-        throw new Error('Неверный ключ доступа');
-    },
-    
-    async teacherLogin(login, password) {
-        await delay(800);
-        if (login === 'teacher' && password === '123') {
-            return {
-                access_token: 'mock_token_' + Date.now(),
-                token_type: 'bearer'
-            };
-        }
-        throw new Error('Неверный логин или пароль');
-    }
-};
-
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 const container = document.getElementById('container');
 const signinBtn = document.getElementById('signinBtn');
@@ -103,24 +73,19 @@ document.getElementById('signinForm')?.addEventListener('submit', async (e) => {
     setLoading(submitBtn, true);
     
     try {
-        let data;
-        if (USE_MOCK) {
-            data = await MOCK_API.studentValidate(fullname, group);
-        } else {
-            const response = await fetch(`${API_BASE_URL}/student/validate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ fio: fullname, key: group })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Неверный ключ доступа');
-            }
-            data = await response.json();
+        const response = await fetch(`${API_BASE_URL}/student/validate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ fio: fullname, key: group })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Неверный ключ доступа');
         }
+        const data = await response.json();
         
         localStorage.setItem('examSession', JSON.stringify({
             sessionId: data.session_id,
@@ -168,24 +133,19 @@ document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
     setLoading(submitBtn, true);
     
     try {
-        let data;
-        if (USE_MOCK) {
-            data = await MOCK_API.teacherLogin(login, password);
-        } else {
-            const response = await fetch(`${API_BASE_URL}/teacher/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ login: login, password: password })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Неверный логин или пароль');
-            }
-            data = await response.json();
+        const response = await fetch(`${API_BASE_URL}/teacher/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ login: login, password: password })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Неверный логин или пароль');
         }
+        const data = await response.json();
         
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('teacherLogin', login);

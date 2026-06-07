@@ -109,20 +109,14 @@ app.add_middleware(
 
 FRONTEND_PATH = Path(__file__).parent.parent.parent / "frontend"
 
-print(f"🔍 Looking for frontend at: {FRONTEND_PATH}")
-print(f"📁 Frontend exists: {FRONTEND_PATH.exists()}")
-
 if FRONTEND_PATH.exists():
     app.mount("/css", StaticFiles(directory=str(FRONTEND_PATH / "css")), name="css")
     app.mount("/js", StaticFiles(directory=str(FRONTEND_PATH / "js")), name="js")
     app.mount("/pages", StaticFiles(directory=str(FRONTEND_PATH / "pages")), name="pages")
-    print("✅ Static files mounted successfully")
 else:
-    print(f"Frontend folder not found at {FRONTEND_PATH}")
     (FRONTEND_PATH / "css").mkdir(parents=True, exist_ok=True)
     (FRONTEND_PATH / "js").mkdir(parents=True, exist_ok=True)
     (FRONTEND_PATH / "pages").mkdir(parents=True, exist_ok=True)
-    print("Created frontend directories")
 
 @app.get("/")
 async def root():
@@ -768,7 +762,6 @@ async def upload_questions_json(
     Загрузка вопросов из JSON файла
     Формат JSON: [{"question": "текст", "expected_answer": "ответ", "topic": "тема", "difficulty": 3}]
     """
-    # Проверяем группу
     group = db.query(models.Group).filter(
         models.Group.id == group_id,
         models.Group.teacher_id == current_teacher.id
@@ -790,7 +783,6 @@ async def upload_questions_json(
                     results["skipped"] += 1
                     continue
                 
-                # Создаем вопрос
                 question = models.QuestionBank(
                     group_id=group_id,
                     teacher_id=group.teacher_id,

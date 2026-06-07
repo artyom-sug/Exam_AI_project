@@ -19,17 +19,14 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     """
     try:
         text = ""
-        # Открываем PDF
         doc = fitz.open(pdf_path)
-        
-        # Проходим по всем страницам
+
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             text += page.get_text()
         
         doc.close()
-        
-        # Очищаем текст (убираем лишние пробелы и переносы)
+
         text = ' '.join(text.split())
         
         logger.info(f"Successfully extracted {len(text)} characters from {pdf_path}")
@@ -51,17 +48,14 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
     """
     try:
         text = ""
-        # Открываем PDF из байтов
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        
-        # Проходим по всем страницам
+
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             text += page.get_text()
         
         doc.close()
-        
-        # Очищаем текст
+
         text = ' '.join(text.split())
         
         return text

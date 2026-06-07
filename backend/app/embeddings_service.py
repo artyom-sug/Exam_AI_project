@@ -110,7 +110,6 @@ class EmbeddingsService:
                 similarity = self.cosine_similarity(query_embedding, chunk.embedding)
                 similarities.append((similarity, chunk.text))
         
-        # Сортируем и берем топ-k
         similarities.sort(key=lambda x: x[0], reverse=True)
         top_chunks = [text for _, text in similarities[:top_k]]
         

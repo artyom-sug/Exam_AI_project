@@ -1,5 +1,4 @@
 const API_BASE_URL = 'http://localhost:8000/api';
-const USE_MOCK = false;
 
 let currentGroupResults = [];
 let allResults = [];
@@ -13,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('token');
     const teacherLogin = localStorage.getItem('teacherLogin');
     
-    if (!token && !USE_MOCK) {
+    if (!token) {
         window.location.href = '/';
         return;
     }
@@ -34,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('logoutBtn').addEventListener('click', logout);
     
-    // Закрытие модальных окон
     document.getElementById('closeSettingsModalBtn').addEventListener('click', () => closeModal('examSettingsModal'));
     document.getElementById('cancelSettingsBtn').addEventListener('click', () => closeModal('examSettingsModal'));
     document.getElementById('closeResultsModalBtn').addEventListener('click', () => closeModal('resultsModal'));
@@ -305,32 +303,20 @@ async function createGroup() {
 
 async function loadGroups() {
     try {
-        if (USE_MOCK) {
-            await delay(500);
-            const groups = ['ИВТ-21-1', 'ПМИ-б-о-241', 'ИСТ-22-2'];
-            const select = document.getElementById('groupSelect');
-            groups.forEach(group => {
-                const option = document.createElement('option');
-                option.value = group;
-                option.textContent = group;
-                select.appendChild(option);
-            });
-        } else {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/groups`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error('Ошибка загрузки групп');
-            const groups = await response.json();
-            const select = document.getElementById('groupSelect');
-            select.innerHTML = '<option value="">-- Выберите группу --</option>';
-            groups.forEach(group => {
-                const option = document.createElement('option');
-                option.value = group.id;
-                option.textContent = group.name;
-                select.appendChild(option);
-            });
-        }
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/groups`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Ошибка загрузки групп');
+        const groups = await response.json();
+        const select = document.getElementById('groupSelect');
+        select.innerHTML = '<option value="">-- Выберите группу --</option>';
+        groups.forEach(group => {
+            const option = document.createElement('option');
+            option.value = group.id;
+            option.textContent = group.name;
+            select.appendChild(option);
+        });
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка загрузки групп. Войдите в аккаунт заново.');
@@ -345,57 +331,20 @@ async function loadResultsForGroup() {
     }
     
     try {
-        if (USE_MOCK) {
-            await delay(800);
-            allResults = generateMockResults(groupId);
-            currentGroupResults = [...allResults];
-            renderResultsTable(currentGroupResults);
-            updateStats(currentGroupResults);
-        } else {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/groups/${groupId}/results`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error('Ошибка загрузки результатов');
-            const results = await response.json();
-            allResults = results;
-            currentGroupResults = [...allResults];
-            renderResultsTable(currentGroupResults);
-            updateStats(currentGroupResults);
-        }
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/groups/${groupId}/results`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Ошибка загрузки результатов');
+        const results = await response.json();
+        allResults = results;
+        currentGroupResults = [...allResults];
+        renderResultsTable(currentGroupResults);
+        updateStats(currentGroupResults);
     } catch (error) {
         console.error('Ошибка:', error);
         alert('Ошибка загрузки результатов');
     }
-}
-
-function generateMockResults(groupName) {
-    const students = [
-        { name: 'Иванов Иван Иванович', answered: 23, total: 25, score: 85 },
-        { name: 'Новикова Мария Сергеевна', answered: 25, total: 25, score: 92 }
-    ];
-    
-    return students.map((s, idx) => ({
-        id: idx + 1,
-        name: s.name,
-        answered: s.answered,
-        total: s.total,
-        score: s.score,
-        answers: generateMockAnswers()
-    }));
-}
-
-function generateMockAnswers() {
-    const questions = [
-        { text: 'Что такое производная функции?', correct: 'Скорость изменения функции' }
-    ];
-    
-    return questions.map((q, idx) => ({
-        question: q.text,
-        studentAnswer: 'Ответ студента',
-        correctAnswer: q.correct,
-        score: 85
-    }));
 }
 
 function renderResultsTable(results) {
@@ -604,10 +553,6 @@ function logout() {
     localStorage.removeItem('teacherLogin');
     localStorage.removeItem('examSession');
     window.location.href = '/';
-}
-
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 window.viewStudentAnswers = viewStudentAnswers;
