@@ -26,15 +26,13 @@ def init_db():
             print("Преподаватель mr.dyadichev уже существует")
 
         teachers_count = db.query(models.Teacher).count()
-        groups_count = db.query(models.Group).count()
         questions_count = db.query(models.QuestionBank).count()
         lectures_count = db.query(models.Lecture).count()
-        
+
         print("\n" + "=" * 60)
         print("СТАТИСТИКА БАЗЫ ДАННЫХ")
         print("=" * 60)
         print(f"Преподавателей: {teachers_count}")
-        print(f"Групп/ключей: {groups_count}")
         print(f"Вопросов в БД: {questions_count}")
         print(f"Лекций в БД: {lectures_count}")
         

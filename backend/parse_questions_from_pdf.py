@@ -227,17 +227,6 @@ def main():
         print(f"Поместите PDF файлы в папку и запустите скрипт снова")
         return
     
-    db = SessionLocal()
-    group = db.query(models.Group).filter(models.Group.name == "Группа с лекциями").first()
-    group_id = group.id if group else None
-    
-    if group_id:
-        print(f"Найдена группа с лекциями ID: {group_id}")
-    else:
-        print("Группа с лекциями не найдена, работаем без контекста")
-    
-    db.close()
-    
     pdf_files = list(questions_folder.glob("*.pdf")) + list(questions_folder.glob("*.PDF"))
     
     if not pdf_files:
@@ -246,7 +235,7 @@ def main():
     
     print(f"\nНайдено PDF файлов: {len(pdf_files)}")
     
-    parser = QuestionParserWithAI(group_id)
+    parser = QuestionParserWithAI()
     all_questions = []
     
     for pdf_path in pdf_files:
