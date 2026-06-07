@@ -438,7 +438,7 @@ function viewStudentAnswers(studentId, grading = false) {
         <div class="answer-item" data-answer-id="${ans.id}">
              <div class="answer-question">Вопрос ${idx + 1}: ${escapeHtml(ans.question)}</div>
             <div class="answer-student">
-                <div class="answer-student-label">📝 Ответ студента:</div>
+                <div class="answer-student-label">Ответ студента:</div>
                 <div class="answer-student-text">${escapeHtml(studentAnswer)}</div>
             </div>
             ${correctAnswer !== '—' ? `

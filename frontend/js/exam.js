@@ -566,7 +566,7 @@ async function startVoiceInputForQuestion(questionIndex) {
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
             if (currentVoiceBtn) {
-                currentVoiceBtn.innerHTML = '🔄 Распознавание...';
+                currentVoiceBtn.innerHTML = 'Распознавание...';
                 currentVoiceBtn.disabled = true;
             }
 
@@ -607,7 +607,7 @@ async function startVoiceInputForQuestion(questionIndex) {
                     alert('Ошибка распознавания: ' + error.message);
                 }
                 if (currentVoiceBtn) {
-                    currentVoiceBtn.innerHTML = '❌ Ошибка';
+                    currentVoiceBtn.innerHTML = 'Ошибка';
                     setTimeout(() => {
                         if (currentVoiceBtn) currentVoiceBtn.innerHTML = '🎙️ Голосовой ввод';
                     }, 2000);
@@ -694,7 +694,7 @@ async function finishExam() {
     stopAutoSave();
 
     if (mediaRecorder && mediaRecorder.state === 'recording') {
-        showWarning('⏳ Завершаем голосовой ввод...', false);
+        showWarning('Завершаем голосовой ввод...', false);
 
         await new Promise((resolve) => {
             const originalOnStop = mediaRecorder.onstop;
@@ -815,7 +815,7 @@ async function autoSubmitExam() {
     } catch (error) {
         console.error('Ошибка автоотправки:', error);
         hideLoadingIndicator();
-        showWarning('❌ Ошибка при отправке. Пожалуйста, сообщите преподавателю.', true);
+        showWarning('Ошибка при отправке. Пожалуйста, сообщите преподавателю.', true);
     }
 }
 
@@ -881,7 +881,7 @@ function getResultsHtml(results) {
         </details>
 
         <div class="results-actions">
-            <button class="btn btn-primary" onclick="clearStorageAndExit()">🏠 Завершить сессию</button>
+            <button class="btn btn-primary" onclick="clearStorageAndExit()">Завершить сессию</button>
         </div>
     `;
 }
@@ -916,10 +916,10 @@ function clearStorageAndExit() {
 }
 
 function getGradeInfo(score) {
-    if (score >= 90) return '<span class="grade-excellent">🎉 Отлично!</span>';
-    if (score >= 75) return '<span class="grade-good">👍 Хорошо!</span>';
-    if (score >= 60) return '<span class="grade-satisfactory">📚 Удовлетворительно</span>';
-    return '<span class="grade-fail">⚠️ Неудовлетворительно</span>';
+    if (score >= 90) return '<span class="grade-excellent">Отлично!</span>';
+    if (score >= 75) return '<span class="grade-good">Хорошо!</span>';
+    if (score >= 60) return '<span class="grade-satisfactory">Удовлетворительно</span>';
+    return '<span class="grade-fail">Неудовлетворительно</span>';
 }
 
 function escapeHtml(text) {
@@ -943,7 +943,7 @@ function showLoadingIndicator() {
         <div class="loader-overlay">
             <div class="loader-content">
                 <div class="loader-spinner"></div>
-                <p>📤 Отправка ответов...</p>
+                <p>Отправка ответов...</p>
             </div>
         </div>
     `;

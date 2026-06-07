@@ -62,7 +62,6 @@ body {
   letter-spacing: 2px;
 }
 
-/* Прогресс-бар */
 .progress-container {
   background: white;
   border-radius: 24px;
@@ -348,7 +347,6 @@ textarea:disabled {
   50% { opacity: 0.5; }
 }
 
-/* Стили для результатов */
 .results-container {
   background: white;
   border-radius: 24px;
@@ -446,7 +444,6 @@ textarea:disabled {
   margin-top: 30px;
 }
 
-/* Loader для отправки */
 .exam-loader .loader-overlay {
   position: fixed;
   top: 0;
@@ -503,7 +500,6 @@ textarea:disabled {
   }
 }
 
-/* Стили для отображения всех вопросов */
 .questions-container {
     display: flex;
     flex-direction: column;
@@ -699,7 +695,6 @@ textarea:disabled {
     }
 }
 
-/* Стили для кнопки остановки записи */
 .voice-stop-btn-small {
     background: #ff6b6b;
     border: none;

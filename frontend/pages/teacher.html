@@ -16,7 +16,7 @@
                 <p>Личный кабинет преподавателя</p>
             </div>
             <button class="logout-btn" id="logoutBtn">
-                <span>🚪</span> Выйти из аккаунта
+                Выйти из аккаунта
             </button>
         </div>
 
@@ -36,7 +36,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно настроек экзамена -->
     <div class="modal modal-large" id="examSettingsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -45,15 +44,8 @@
             </div>
             <div class="modal-body">
                 <div class="settings-actions-top">
-                    <button type="button" class="btn-create" id="editAnswersBtn">📝 Редактировать эталонные ответы</button>
+                    <button type="button" class="btn-create" id="editAnswersBtn">Редактировать эталонные ответы</button>
                     <p class="settings-hint">Вопросы и эталонные ответы общие для всех групп. Настройки ниже задаются отдельно для каждой группы.</p>
-                </div>
-
-                <div class="group-selector">
-                    <label>Выберите группу</label>
-                    <select id="settingsGroupSelect">
-                        <option value="">-- Выберите группу --</option>
-                    </select>
                 </div>
 
                 <div class="create-group-block">
@@ -62,6 +54,13 @@
                         <input type="text" id="newGroupName" placeholder="Название / ключ группы (например: ИВТ-21-1)">
                         <button type="button" class="btn-create" id="createGroupBtn">Создать группу</button>
                     </div>
+                </div>
+
+                <div class="group-selector">
+                    <label>Выберите группу</label>
+                    <select id="settingsGroupSelect">
+                        <option value="">-- Выберите группу --</option>
+                    </select>
                 </div>
 
                 <div id="settingsFormBlock" style="display: none;">
@@ -73,7 +72,7 @@
                                     <input type="radio" name="settingsQuestionSource" value="auto" checked>
                                     <span class="radio-custom"></span>
                                     <div class="radio-content">
-                                        <strong>🤖 Генерация вопросов по лекциям</strong>
+                                        <strong>Генерация вопросов по лекциям</strong>
                                         <small>Вопросы и эталонные ответы формируются на основе содержания лекций из базы данных (хранятся только на время сессии студента)</small>
                                     </div>
                                 </label>
@@ -81,7 +80,7 @@
                                     <input type="radio" name="settingsQuestionSource" value="manual">
                                     <span class="radio-custom"></span>
                                     <div class="radio-content">
-                                        <strong>📋 Использовать существующие вопросы</strong>
+                                        <strong>Использовать существующие вопросы</strong>
                                         <small>Студентам выдаются вопросы из общей базы с эталонными ответами</small>
                                     </div>
                                 </label>

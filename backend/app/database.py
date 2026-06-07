@@ -13,7 +13,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def run_migrations():
-    """Добавляет новые колонки и таблицы в существующую SQLite БД."""
     inspector = inspect(engine)
     
     if "students" in inspector.get_table_names():

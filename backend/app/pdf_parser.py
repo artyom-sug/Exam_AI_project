@@ -1,6 +1,3 @@
-"""
-Парсер PDF файлов для извлечения текста
-"""
 import fitz  # PyMuPDF
 import logging
 from pathlib import Path
@@ -8,15 +5,6 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    """
-    Извлекает текст из PDF файла
-    
-    Args:
-        pdf_path: путь к PDF файлу
-        
-    Returns:
-        извлеченный текст в виде строки
-    """
     try:
         text = ""
         doc = fitz.open(pdf_path)
@@ -37,15 +25,6 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         return ""
 
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
-    """
-    Извлекает текст из PDF байтов
-    
-    Args:
-        pdf_bytes: PDF файл в виде байтов
-        
-    Returns:
-        извлеченный текст в виде строки
-    """
     try:
         text = ""
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -65,15 +44,6 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
         return ""
 
 def get_pdf_info(pdf_path: str) -> dict:
-    """
-    Получает информацию о PDF файле
-    
-    Args:
-        pdf_path: путь к PDF файлу
-        
-    Returns:
-        словарь с информацией о файле
-    """
     try:
         doc = fitz.open(pdf_path)
         info = {

@@ -24,24 +24,7 @@ def init_db():
             print("Создан преподаватель: login='mr.dyadichev', password='test123'")
         else:
             print("Преподаватель mr.dyadichev уже существует")
-        
-        group = db.query(models.Group).filter(models.Group.access_key == "ПМИ-241").first()
-        if not group:
-            group = models.Group(
-                name="ПМИ-241",
-                teacher_id=teacher.id,
-                access_key="ПМИ-241",
-                questions_count=10,
-                time_per_question=5400,
-                use_auto_generation=0
-            )
-            db.add(group)
-            db.commit()
-            print("Создан ключ доступа: ПМИ-241")
-            print("(Вопросы для этой группы будут загружены отдельным скриптом)")
-        else:
-            print("Ключ ПМИ-241 уже существует")
-        
+
         teachers_count = db.query(models.Teacher).count()
         groups_count = db.query(models.Group).count()
         questions_count = db.query(models.QuestionBank).count()
@@ -66,9 +49,8 @@ def init_db():
         print("\n" + "=" * 60)
         print("ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА")
         print("=" * 60)
-        print(f"\nДанные для входа:")
-        print(f"Преподаватель: mr.dyadichev / test123")
-        print(f"Студент (ключ): ПМИ-241")
+        print(f"\nДанные для входа преподавателя: mr.dyadichev / test123")
+        print("Группы создаются в панели преподавателя на сайте.")
         
     except Exception as e:
         print(f"Ошибка: {e}")

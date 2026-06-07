@@ -26,7 +26,7 @@ class Group(Base):
     questions = relationship("QuestionBank", back_populates="group", cascade="all, delete-orphan")
 
     questions_count = Column(Integer, default=5)
-    time_per_question = Column(Integer, default=5400)  # общее время экзамена в секундах
+    time_per_question = Column(Integer, default=5400)
     use_auto_generation = Column(Integer, default=1)
     
     created_at = Column(DateTime, default=datetime.now)

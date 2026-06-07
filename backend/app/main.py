@@ -55,7 +55,6 @@ def get_teacher_lecture_text(db: Session, teacher_id: int) -> str:
     return " ".join(lec.text_content for lec in lectures if lec.text_content)
 
 def get_teacher_lecture_chunks(db: Session, teacher_id: int) -> List[dict]:
-    """Фрагменты лекций из БД для генерации вопросов."""
     group_ids = get_teacher_group_ids(db, teacher_id)
     if not group_ids:
         return []
@@ -758,10 +757,6 @@ async def upload_questions_json(
     current_teacher: models.Teacher = Depends(auth.get_current_teacher),
     db: Session = Depends(get_db)
 ):
-    """
-    Загрузка вопросов из JSON файла
-    Формат JSON: [{"question": "текст", "expected_answer": "ответ", "topic": "тема", "difficulty": 3}]
-    """
     group = db.query(models.Group).filter(
         models.Group.id == group_id,
         models.Group.teacher_id == current_teacher.id
