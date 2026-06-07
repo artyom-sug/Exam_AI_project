@@ -21,7 +21,7 @@ class TokenResponse(BaseModel):
 class GroupCreate(BaseModel):
     name: str
     questions_count: Optional[int] = 5
-    time_per_question: Optional[int] = 30
+    time_per_question: Optional[int] = 5400
     use_auto_generation: Optional[bool] = True
 
 class GroupResponse(BaseModel):
@@ -29,7 +29,7 @@ class GroupResponse(BaseModel):
     name: str
     access_key: str
     questions_count: int
-    time_per_question: int
+    exam_duration_seconds: int
     use_auto_generation: bool
     created_at: datetime
     
@@ -37,10 +37,10 @@ class GroupResponse(BaseModel):
         from_attributes = True
 
 class GroupUpdate(BaseModel):
-    name: Optional[str]
-    questions_count: Optional[int]
-    time_per_question: Optional[int]
-    use_auto_generation: Optional[bool]
+    name: Optional[str] = None
+    questions_count: Optional[int] = None
+    exam_duration_seconds: Optional[int] = None
+    use_auto_generation: Optional[bool] = None
 
 class GenerateKeyResponse(BaseModel):
     access_key: str
@@ -61,18 +61,18 @@ class LectureUpload(BaseModel):
 class Question(BaseModel):
     id: int
     text: str
-    time_limit: int
 
 class ExamStartResponse(BaseModel):
     questions: List[Question]
-    question_ids: List[int]  
+    question_ids: List[int]
+    exam_duration_seconds: int
 
 class AnswerSubmit(BaseModel):
     question_id: int
     answer: str
 
 class ExamSubmit(BaseModel):
-    answers: List[str]  
+    answers: List[str] 
 
 class AnswerResult(BaseModel):
     score: float
@@ -89,9 +89,16 @@ class QuestionBankCreate(BaseModel):
     topic: Optional[str] = None
     difficulty: Optional[int] = 3
 
+class QuestionBankUpdate(BaseModel):
+    question_text: Optional[str] = None
+    expected_answer: Optional[str] = None
+    topic: Optional[str] = None
+    difficulty: Optional[int] = None
+
+
 class QuestionBankResponse(BaseModel):
     id: int
-    group_id: int
+    group_id: Optional[int]
     question_text: str
     expected_answer: Optional[str]
     topic: Optional[str]
@@ -110,3 +117,5 @@ class AnswerScoreUpdate(BaseModel):
     score: Optional[float] = None
     comment: Optional[str] = None
 
+class StudentTotalScoreUpdate(BaseModel):
+    total_score: float

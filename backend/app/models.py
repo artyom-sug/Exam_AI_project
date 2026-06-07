@@ -26,8 +26,8 @@ class Group(Base):
     questions = relationship("QuestionBank", back_populates="group", cascade="all, delete-orphan")
 
     questions_count = Column(Integer, default=5)
-    time_per_question = Column(Integer, default=30)
-    use_auto_generation = Column(Integer, default=1) 
+    time_per_question = Column(Integer, default=5400)  # общее время экзамена в секундах
+    use_auto_generation = Column(Integer, default=1)
     
     created_at = Column(DateTime, default=datetime.now)
     
@@ -44,9 +44,11 @@ class Student(Base):
     exam_session_id = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()))
     started_at = Column(DateTime, default=datetime.now)
     completed_at = Column(DateTime, nullable=True)
+    manual_total_score = Column(Float, nullable=True)
     
     group = relationship("Group", back_populates="students")
     answers = relationship("Answer", back_populates="student", cascade="all, delete-orphan")
+    session_questions = relationship("SessionQuestion", back_populates="student", cascade="all, delete-orphan")
 
 class Lecture(Base):
     __tablename__ = "lectures"
@@ -81,17 +83,32 @@ class Answer(Base):
     student_answer = Column(Text, nullable=False)
     score = Column(Float, nullable=True)
     comment = Column(Text, nullable=True)
+    expected_answer = Column(Text, nullable=True)
     question_number = Column(Integer)
     answered_at = Column(DateTime, default=datetime.now)
     
     student = relationship("Student", back_populates="answers")
     question = relationship("QuestionBank", foreign_keys=[question_id])  
     
+class SessionQuestion(Base):
+    __tablename__ = "session_questions"
+    
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    question_number = Column(Integer, nullable=False)
+    question_text = Column(Text, nullable=False)
+    expected_answer = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    
+    student = relationship("Student", back_populates="session_questions")
+
+
 class QuestionBank(Base):
     __tablename__ = "question_bank"
     
     id = Column(Integer, primary_key=True)
-    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True)
     question_text = Column(Text, nullable=False)
     expected_answer = Column(Text, nullable=True)  # Ожидаемый ответ (для проверки)
     topic = Column(String(200), nullable=True)     # Тема вопроса
@@ -99,3 +116,4 @@ class QuestionBank(Base):
     created_at = Column(DateTime, default=datetime.now)
     
     group = relationship("Group", back_populates="questions")
+    teacher = relationship("Teacher")

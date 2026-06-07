@@ -77,13 +77,24 @@ class EmbeddingsService:
         logger.info(f"Processed lecture {lecture_id}: {len(chunks)} chunks created")
     
     def search_similar_chunks(self, db: Session, group_id: int, query: str, top_k: int = 3) -> List[str]:
-        if not self.model:
+        return self.search_similar_chunks_for_groups(db, [group_id], query, top_k)
+
+    def search_similar_chunks_for_teacher(self, db: Session, teacher_id: int, query: str, top_k: int = 3) -> List[str]:
+        group_ids = [
+            g.id for g in db.query(models.Group).filter(
+                models.Group.teacher_id == teacher_id
+            ).all()
+        ]
+        return self.search_similar_chunks_for_groups(db, group_ids, query, top_k)
+
+    def search_similar_chunks_for_groups(self, db: Session, group_ids: List[int], query: str, top_k: int = 3) -> List[str]:
+        if not self.model or not group_ids:
             return []
         
         chunks = db.query(models.Chunk).join(
             models.Lecture
         ).filter(
-            models.Lecture.group_id == group_id
+            models.Lecture.group_id.in_(group_ids)
         ).all()
         
         if not chunks:

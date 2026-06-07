@@ -571,7 +571,97 @@ body {
     border-radius: 12px;
     font-size: 13px;
     color: #555;
-    line-height: 1.4;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.answer-student-text,
+.answer-correct-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.total-score-edit {
+    background: linear-gradient(to bottom right, #87dbfd30, #d5ceeb30);
+    padding: 20px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.total-score-input {
+    width: 90px;
+    padding: 10px 12px;
+    border: 2px solid #87dbfd;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.answer-comment-edit {
+    margin-top: 12px;
+}
+
+.comment-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+.settings-actions-top {
+    margin-bottom: 24px;
+}
+.settings-hint {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-radius: 12px;
+}
+
+.questions-edit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.question-edit-item {
+    background: #f8f9fa;
+    border-radius: 16px;
+    padding: 16px;
+    border-left: 4px solid #87dbfd;
+}
+.question-edit-number {
+    font-weight: 700;
+    color: #1e2f4e;
+    margin-bottom: 12px;
+}
+
+.question-edit-item textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    font-family: inherit;
 }
 
 .answer-score-edit {

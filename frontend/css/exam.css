@@ -428,9 +428,12 @@ textarea:disabled {
 }
 
 .comment-cell {
-  max-width: 250px;
   font-size: 13px;
   color: #666;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  min-width: 200px;
 }
 
 .score-high { color: #4CAF50; }

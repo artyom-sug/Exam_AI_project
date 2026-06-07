@@ -225,17 +225,14 @@ async function loadExam() {
         const restored = restoreExamSessionState();
         
         if (!restored) {
-            // Если не восстановили полное состояние - загружаем индивидуальные ответы
             loadSavedAnswers();
             
-            // Восстанавливаем время
             const savedTimeLeft = localStorage.getItem(`exam_time_left_${examSession.sessionId}`);
-            const timePerQuestion = 60;
-            const totalSeconds = questions.length * timePerQuestion;
+            const totalSeconds = data.exam_duration_seconds || 5400;
             
             if (savedTimeLeft) {
                 const timeLeft = parseInt(savedTimeLeft);
-                totalTimeLeft = (timeLeft > 0 && timeLeft < totalSeconds) ? timeLeft : totalSeconds;
+                totalTimeLeft = (timeLeft > 0 && timeLeft <= totalSeconds) ? timeLeft : totalSeconds;
             } else {
                 totalTimeLeft = totalSeconds;
             }
@@ -907,7 +904,7 @@ function getResultsHtml(results) {
                         return `
                             <tr>
                                 <td>${idx + 1}</td>
-                                <td class="question-cell">${escapeHtml(questionText.substring(0, 80))}${questionText.length > 80 ? '…' : ''}</td>
+                                <td class="question-cell">${escapeHtml(questionText)}</td>
                                 <td class="${scoreClass}"><strong>${Math.round(result.score)}</strong> / 100</td>
                                 <td class="comment-cell">${escapeHtml(result.comment || 'Проверено')}</td>
                             </tr>

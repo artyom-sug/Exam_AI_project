@@ -12,7 +12,7 @@ from datetime import datetime
 from .llm_service import llm_service
 from .embeddings_service import embeddings_service
 from .pdf_parser import extract_text_from_pdf
-from .database import engine, get_db, Base
+from .database import engine, get_db, Base, run_migrations
 from . import models, schemas, auth
 from .config import LECTURES_DIR, TEMP_AUDIO_DIR
 from .crypto import get_password_hash, verify_password
@@ -22,7 +22,42 @@ exam_sessions_questions = defaultdict(dict)
 import logging
 logger = logging.getLogger(__name__)
 
+def group_to_response(group: models.Group) -> schemas.GroupResponse:
+    return schemas.GroupResponse(
+        id=group.id,
+        name=group.name,
+        access_key=group.access_key,
+        questions_count=group.questions_count,
+        exam_duration_seconds=group.time_per_question,
+        use_auto_generation=bool(group.use_auto_generation),
+        created_at=group.created_at
+    )
+
+def get_teacher_questions(db: Session, teacher_id: int):
+    return db.query(models.QuestionBank).filter(
+        models.QuestionBank.teacher_id == teacher_id
+    ).all()
+
+def get_teacher_lecture_text(db: Session, teacher_id: int) -> str:
+    group_ids = [
+        g.id for g in db.query(models.Group).filter(
+            models.Group.teacher_id == teacher_id
+        ).all()
+    ]
+    if not group_ids:
+        return ""
+    lectures = db.query(models.Lecture).filter(
+        models.Lecture.group_id.in_(group_ids)
+    ).all()
+    return " ".join(lec.text_content for lec in lectures if lec.text_content)
+
+def clear_session_questions(db: Session, student_id: int):
+    db.query(models.SessionQuestion).filter(
+        models.SessionQuestion.student_id == student_id
+    ).delete()
+
 Base.metadata.create_all(bind=engine)
+run_migrations()
 
 app = FastAPI(title="Exam System", version="0.1.0")
 
@@ -110,11 +145,12 @@ async def create_group(
     current_teacher: models.Teacher = Depends(auth.get_current_teacher),
     db: Session = Depends(get_db)
 ):
+    duration = group.exam_duration_seconds if group.exam_duration_seconds is not None else 5400
     db_group = models.Group(
         name=group.name,
         teacher_id=current_teacher.id,
         questions_count=group.questions_count,
-        time_per_question=group.time_per_question,
+        time_per_question=duration,
         use_auto_generation=1 if group.use_auto_generation else 0
     )
     db.add(db_group)
@@ -130,7 +166,7 @@ async def get_groups(
     groups = db.query(models.Group).filter(
         models.Group.teacher_id == current_teacher.id
     ).all()
-    return groups
+    return [group_to_response(g) for g in groups]
 
 @app.put("/api/groups/{group_id}", response_model=schemas.GroupResponse)
 async def update_group(
@@ -147,12 +183,17 @@ async def update_group(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    for key, value in group_update.dict(exclude_unset=True).items():
+    update_data = group_update.dict(exclude_unset=True)
+    if "exam_duration_seconds" in update_data:
+        group.time_per_question = update_data.pop("exam_duration_seconds")
+    if "use_auto_generation" in update_data:
+        group.use_auto_generation = 1 if update_data.pop("use_auto_generation") else 0
+    for key, value in update_data.items():
         setattr(group, key, value)
     
     db.commit()
     db.refresh(group)
-    return group
+    return group_to_response(group)
 
 @app.post("/api/groups/{group_id}/generate-key", response_model=schemas.GenerateKeyResponse)
 async def generate_new_key(
@@ -294,7 +335,8 @@ async def start_exam(
         session_data = exam_sessions_questions[session_id]
         return schemas.ExamStartResponse(
             questions=session_data["questions"],
-            question_ids=session_data["question_ids"]
+            question_ids=session_data["question_ids"],
+            exam_duration_seconds=session_data["exam_duration_seconds"]
         )
     
     student = db.query(models.Student).filter(
@@ -305,68 +347,94 @@ async def start_exam(
         raise HTTPException(status_code=404, detail="Session not found")
     
     group = student.group
+    teacher_id = group.teacher_id
     questions_list = []
-    question_ids = []  # НОВОЕ: сохраняем ID вопросов
+    question_ids = []
+    session_question_ids = []
+
+    clear_session_questions(db, student.id)
     
     if group.use_auto_generation == 0:
-        db_questions = db.query(models.QuestionBank).filter(
-            models.QuestionBank.group_id == group.id
-        ).all()
+        db_questions = get_teacher_questions(db, teacher_id)
         
         if db_questions:
             import random
             selected_questions = random.sample(
-                db_questions, 
+                db_questions,
                 min(group.questions_count, len(db_questions))
             )
             
             for i, q in enumerate(selected_questions):
                 questions_list.append(
-                    schemas.Question(
-                        id=i+1,
-                        text=q.question_text,
-                        time_limit=group.time_per_question
-                    )
+                    schemas.Question(id=i + 1, text=q.question_text)
                 )
-                question_ids.append(q.id) 
+                question_ids.append(q.id)
+                session_question_ids.append(None)
     
-    if not questions_list and group.use_auto_generation == 1:
-        lectures = db.query(models.Lecture).filter(models.Lecture.group_id == group.id).all()
+    elif group.use_auto_generation == 1:
+        combined_text = get_teacher_lecture_text(db, teacher_id)
+        teacher_questions = get_teacher_questions(db, teacher_id)
         
-        if lectures:
-            combined_text = " ".join([lec.text_content for lec in lectures if lec.text_content])
-            if combined_text:
-                generated_questions = llm_service.generate_questions(combined_text, group.questions_count)
-                
-                for i, q_text in enumerate(generated_questions):
-                    questions_list.append(
-                        schemas.Question(
-                            id=i+1,
-                            text=q_text,
-                            time_limit=group.time_per_question
-                        )
-                    )
-                    question_ids.append(-1)  # -1 означает сгенерированный вопрос
+        example_questions = [
+            {"question": q.question_text, "expected_answer": q.expected_answer or ""}
+            for q in teacher_questions
+        ]
+        
+        if combined_text and example_questions:
+            generated = llm_service.generate_questions_from_examples(
+                combined_text, example_questions, group.questions_count
+            )
+        elif combined_text:
+            generated = [
+                {"question": q, "expected_answer": llm_service.generate_reference_answer(q, combined_text)}
+                for q in llm_service.generate_questions(combined_text, group.questions_count)
+            ]
+        else:
+            generated = []
+        
+        for i, item in enumerate(generated):
+            sq = models.SessionQuestion(
+                student_id=student.id,
+                question_number=i + 1,
+                question_text=item["question"],
+                expected_answer=item.get("expected_answer", "")
+            )
+            db.add(sq)
+            db.flush()
+            
+            questions_list.append(
+                schemas.Question(id=i + 1, text=item["question"])
+            )
+            question_ids.append(-1)
+            session_question_ids.append(sq.id)
+        
+        db.commit()
+
     
     if not questions_list:
         for i in range(group.questions_count):
             questions_list.append(
                 schemas.Question(
-                    id=i+1,
-                    text=f"Вопрос {i+1}. Опишите основные концепции изученного материала?",
-                    time_limit=group.time_per_question
+                    id=i + 1,
+                    text=f"Вопрос {i + 1}. Опишите основные концепции изученного материала?"
                 )
             )
             question_ids.append(-1)
+            session_question_ids.append(None)
+
+    exam_duration = group.time_per_question or 5400
     
     exam_sessions_questions[session_id] = {
         "questions": questions_list,
-        "question_ids": question_ids
+        "question_ids": question_ids,
+        "session_question_ids": session_question_ids,
+        "exam_duration_seconds": exam_duration
     }
     
     return schemas.ExamStartResponse(
         questions=questions_list,
-        question_ids=question_ids
+        question_ids=question_ids,
+        exam_duration_seconds=exam_duration
     )
 
 @app.post("/api/exam/submit", response_model=schemas.ExamResultResponse)
@@ -386,7 +454,8 @@ async def submit_exam(
     
     session_data = exam_sessions_questions.get(session_id, {})
     question_ids = session_data.get("question_ids", [])
-    session_questions = session_data.get("questions", [])  # ДОБАВИТЬ ЭТУ СТРОКУ
+    session_question_ids = session_data.get("session_question_ids", [])
+    session_questions = session_data.get("questions", [])
     
     results = []
     total = 0
@@ -397,7 +466,7 @@ async def submit_exam(
         question_id = None
         
         if i < len(session_questions):
-            question_text = session_questions[i].text 
+            question_text = session_questions[i].text
         
         if i < len(question_ids) and question_ids[i] != -1:
             db_question = db.query(models.QuestionBank).filter(
@@ -407,14 +476,21 @@ async def submit_exam(
                 question_text = db_question.question_text
                 expected_answer = db_question.expected_answer
                 question_id = db_question.id
+            elif i < len(session_question_ids) and session_question_ids[i]:
+                sq = db.query(models.SessionQuestion).filter(
+                models.SessionQuestion.id == session_question_ids[i]
+            ).first()
+            if sq:
+                question_text = sq.question_text
+                expected_answer = sq.expected_answer
         
         if expected_answer:
             evaluation = llm_service.evaluate_answer_with_expected(
                 question_text, answer, expected_answer
             )
         else:
-            relevant_chunks = embeddings_service.search_similar_chunks(
-                db, group.id, answer, top_k=3
+            relevant_chunks = embeddings_service.search_similar_chunks_for_teacher(
+                db, group.teacher_id, answer, top_k=3
             )
             
             if relevant_chunks:
@@ -422,19 +498,23 @@ async def submit_exam(
                     question_text, answer, relevant_chunks
                 )
             else:
-                evaluation = llm_service.evaluate_answer(question_text, answer)
+                lecture_text = get_teacher_lecture_text(db, group.teacher_id)
+                evaluation = llm_service.evaluate_answer(
+                    question_text, answer, lecture_text
+                )
         
         score = evaluation["score"]
         comment = evaluation["comment"]
         
         db_answer = models.Answer(
             student_id=student.id,
-            question_id=question_id,  # НОВОЕ
+            question_id=question_id,
             question_text=question_text,
             student_answer=answer,
             score=score,
             comment=comment,
-            question_number=i+1
+            expected_answer=expected_answer,
+            question_number=i + 1
         )
         db.add(db_answer)
         
@@ -446,6 +526,7 @@ async def submit_exam(
         ))
     
     student.completed_at = datetime.now()
+    clear_session_questions(db, student.id)
     db.commit()
     
     if session_id in exam_sessions_questions:
@@ -535,14 +616,14 @@ async def create_exam(
     if existing:
         raise HTTPException(status_code=400, detail="Group with this key already exists")
     
-    time_per_question = max(30, (duration_minutes * 60) // max(questions_count, 1))
+    exam_duration_seconds = duration_minutes * 60
     
     group = models.Group(
         name=room_key,
         teacher_id=current_teacher.id,
         access_key=room_key.upper(),
         questions_count=questions_count,
-        time_per_question=time_per_question,
+        time_per_question=exam_duration_seconds,
         use_auto_generation=1 if question_source == "auto" else 0
     )
     db.add(group)
@@ -594,6 +675,7 @@ async def upload_questions_json(
                 # Создаем вопрос
                 question = models.QuestionBank(
                     group_id=group_id,
+                    teacher_id=group.teacher_id,
                     question_text=q_data["question"],
                     expected_answer=q_data.get("expected_answer", ""),
                     topic=q_data.get("topic", ""),
@@ -655,6 +737,7 @@ async def upload_questions_csv(
             try:
                 question = models.QuestionBank(
                     group_id=group_id,
+                    teacher_id=group.teacher_id,
                     question_text=row[0].strip(),
                     expected_answer=row[1].strip() if len(row) > 1 else "",
                     topic=row[2].strip() if len(row) > 2 else "",
@@ -686,9 +769,7 @@ async def get_group_questions(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    questions = db.query(models.QuestionBank).filter(
-        models.QuestionBank.group_id == group_id
-    ).all()
+    questions = get_teacher_questions(db, group.teacher_id)
     
     return questions
 
@@ -709,7 +790,7 @@ async def delete_question(
     
     question = db.query(models.QuestionBank).filter(
         models.QuestionBank.id == question_id,
-        models.QuestionBank.group_id == group_id
+        models.QuestionBank.teacher_id == group.teacher_id
     ).first()
     
     if not question:
@@ -719,6 +800,38 @@ async def delete_question(
     db.commit()
     
     return {"message": "Question deleted"}
+
+
+@app.put("/api/groups/{group_id}/questions/{question_id}", response_model=schemas.QuestionBankResponse)
+async def update_question(
+    group_id: int,
+    question_id: int,
+    question_update: schemas.QuestionBankUpdate,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    question = db.query(models.QuestionBank).filter(
+        models.QuestionBank.id == question_id,
+        models.QuestionBank.teacher_id == group.teacher_id
+    ).first()
+    
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    
+    for key, value in question_update.dict(exclude_unset=True).items():
+        setattr(question, key, value)
+    
+    db.commit()
+    db.refresh(question)
+    return question
 
 @app.get("/api/groups/{group_id}/results")
 async def get_group_results(
@@ -740,7 +853,8 @@ async def get_group_results(
     for student in students:
         answers = db.query(models.Answer).filter(models.Answer.student_id == student.id).all()
         
-        total_score = sum(a.score or 0 for a in answers) / len(answers) if answers else 0
+        avg_score = sum(a.score or 0 for a in answers) / len(answers) if answers else 0
+        total_score = student.manual_total_score if student.manual_total_score is not None else avg_score
         answered = len([a for a in answers if a.student_answer and a.student_answer.strip()])
         
         student_answers = []
@@ -749,13 +863,15 @@ async def get_group_results(
                 models.QuestionBank.id == answer.question_id
             ).first() if answer.question_id else None
             
+            correct = answer.expected_answer or (question.expected_answer if question else "")
+
             student_answers.append({
                 "id": answer.id,
                 "question": answer.question_text,
                 "student_answer": answer.student_answer,
-                "correct_answer": question.expected_answer if question else "",
+                "correct_answer": correct,
                 "score": answer.score,
-                "comment": answer.comment
+                "comment": answer.comment or ""
             })
         
         results.append({
@@ -764,6 +880,7 @@ async def get_group_results(
             "answered": answered,
             "total": len(answers) if answers else 0,
             "score": round(total_score, 1),
+            "manual_total_score": student.manual_total_score if student.manual_total_score is not None else round(avg_score, 1),
             "answers": student_answers
         })
     
@@ -806,9 +923,46 @@ async def update_answer_score(
     ).all()
     total_score = sum(a.score or 0 for a in student_answers) / len(student_answers) if student_answers else 0
     
+    student = db.query(models.Student).filter(
+        models.Student.id == answer.student_id
+    ).first()
+    display_total = student.manual_total_score if student and student.manual_total_score is not None else round(total_score, 1)
+    
     return {
         "answer_id": answer.id,
         "score": answer.score,
         "comment": answer.comment,
-        "student_total_score": round(total_score, 1)
+        "student_total_score": display_total
+    }
+
+@app.put("/api/groups/{group_id}/students/{student_id}/total-score")
+async def update_student_total_score(
+    group_id: int,
+    student_id: int,
+    update_data: schemas.StudentTotalScoreUpdate,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    group = db.query(models.Group).filter(
+        models.Group.id == group_id,
+        models.Group.teacher_id == current_teacher.id
+    ).first()
+    
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    student = db.query(models.Student).filter(
+        models.Student.id == student_id,
+        models.Student.group_id == group_id
+    ).first()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    student.manual_total_score = min(100, max(0, update_data.total_score))
+    db.commit()
+    
+    return {
+        "student_id": student.id,
+        "total_score": student.manual_total_score
     }

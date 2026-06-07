@@ -23,11 +23,11 @@
 
         <!-- Карточки действий -->
         <div class="actions-grid">
-            <div class="action-card" id="createExamBtn">
-                <div class="card-icon">📝</div>
-                <h3>Создать экзамен</h3>
-                <p>Создайте виртуальную комнату для проведения экзамена с настройкой материалов, вопросов и времени</p>
-                <button class="card-btn">Создать →</button>
+            <div class="action-card" id="examSettingsBtn">
+                <div class="card-icon">⚙️</div>
+                <h3>Настройки экзаменов</h3>
+                <p>Настройте параметры экзамена для каждой группы, эталонные ответы и режим генерации вопросов</p>
+                <button class="card-btn">Настроить →</button>
             </div>
             <div class="action-card" id="viewResultsBtn">
                 <div class="card-icon">📊</div>
@@ -38,85 +38,93 @@
         </div>
     </div>
 
-    <!-- Модальное окно создания экзамена -->
-    <div class="modal" id="createExamModal">
+    <!-- Модальное окно настроек экзамена -->
+    <div class="modal modal-large" id="examSettingsModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Создание виртуальной комнаты для экзамена</h3>
-                <button class="modal-close" id="closeModalBtn">&times;</button>
+                <h3>Настройки экзаменов</h3>
+                <button class="modal-close" id="closeSettingsModalBtn">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="createExamForm">
-                    <!-- Материалы лекций -->
-                    <div class="form-group">
-                        <label>Материалы лекций для проверки ответов</label>
-                        <div class="file-upload">
-                            <input type="file" id="lectureMaterials" accept=".pdf,.docx,.txt" multiple style="display: none;">
-                            <button type="button" class="upload-btn" onclick="document.getElementById('lectureMaterials').click()">
-                                📁 Загрузить файл (PDF, DOCX, TXT)
-                            </button>
-                            <div class="file-list" id="lectureFilesList"></div>
-                        </div>
+                <div class="group-selector">
+                    <label>Выберите группу</label>
+                    <select id="settingsGroupSelect">
+                        <option value="">-- Выберите группу --</option>
+                    </select>
+                </div>
+                <div id="settingsFormBlock" style="display: none;">
+                    <div class="settings-actions-top">
+                        <button type="button" class="btn-create" id="editAnswersBtn">📝 Редактировать эталонные ответы</button>
                     </div>
 
-                    <!-- Источник вопросов -->
-                    <div class="form-group">
-                        <label>Источник вопросов</label>
-                        <div class="radio-group">
-                            <label class="radio-label">
-                                <input type="radio" name="questionSource" value="auto" checked>
-                                <span class="radio-custom"></span>
-                                <div class="radio-content">
-                                    <strong>🤖 Генерация вопросов автоматически</strong>
-                                    <small>Система создаст вопросы на основе загруженных материалов</small>
-                                </div>
-                            </label>
-                            <label class="radio-label">
-                                <input type="radio" name="questionSource" value="manual">
-                                <span class="radio-custom"></span>
-                                <div class="radio-content">
-                                    <strong>📋 Загрузить готовый список вопросов</strong>
-                                    <small>Использовать заранее подготовленные вопросы</small>
-                                </div>
-                            </label>
-                        </div>
-                        
-                        <!-- Блок загрузки вопросов (появляется при выборе manual) -->
-                        <div class="manual-upload" id="manualUploadBlock" style="display: none;">
-                            <div class="file-upload">
-                                <input type="file" id="questionsFile" accept=".pdf,.docx,.txt,.json" style="display: none;">
-                                <button type="button" class="upload-btn" onclick="document.getElementById('questionsFile').click()">
-                                    📤 Загрузить список вопросов (PDF, DOCX, TXT, JSON)
-                                </button>
-                                <div class="file-list" id="questionsFileList"></div>
+                    <form id="examSettingsForm">
+                        <div class="form-group">
+                            <label>Режим вопросов</label>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="settingsQuestionSource" value="auto" checked>
+                                    <span class="radio-custom"></span>
+                                    <div class="radio-content">
+                                        <strong>🤖 Генерация вопросов по образцу</strong>
+                                        <small>Новые вопросы генерируются на основе существующих и лекций (только на время сессии студента)</small>
+                                    </div>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="settingsQuestionSource" value="manual">
+                                    <span class="radio-custom"></span>
+                                    <div class="radio-content">
+                                        <strong>📋 Использовать существующие вопросы</strong>
+                                        <small>Студентам выдаются вопросы из базы с эталонными ответами</small>
+                                    </div>
+                                </label>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Количество вопросов</label>
-                            <input type="number" id="questionsCount" min="1" max="100" value="25" placeholder="Например: 25">
+                        
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Количество вопросов</label>
+                                <input type="number" id="settingsQuestionsCount" min="1" value="25">
+                            </div>
+                            <div class="form-group">
+                                <label>Общее время экзамена (минуты)</label>
+                                <input type="number" id="settingsExamDuration" min="1" value="90">
+                            </div>
                         </div>
+
                         <div class="form-group">
-                            <label>Продолжительность экзамена (минуты)</label>
-                            <input type="number" id="examDuration" min="1" max="300" value="90" placeholder="Например: 90">
+                            <label>Ключ доступа группы</label>
+                            <input type="text" id="settingsAccessKey" readonly>
                         </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Ключ комнаты (номер группы)</label>
-                        <input type="text" id="roomKey" placeholder="Например: ИВТ-21-1" required>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="btn-cancel" id="cancelModalBtn">Отмена</button>
-                        <button type="submit" class="btn-create">Создать виртуальную комнату</button>
-                    </div>
-                </form>
+                        <div class="modal-actions">
+                            <button type="button" class="btn-cancel" id="cancelSettingsBtn">Отмена</button>
+                            <button type="submit" class="btn-create">Сохранить настройки</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
+    
+ <!-- Модальное окно редактирования эталонных ответов -->
+ <div class="modal modal-large" id="editAnswersModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Эталонные ответы</h3>
+            <button class="modal-close" id="closeEditAnswersBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="settings-hint">Вопросы и эталонные ответы общие для всех групп. Изменения применяются ко всем экзаменам.</p>
+            <div id="questionsEditList" class="questions-edit-list">
+                <p style="text-align: center; color: #888;">Загрузка вопросов...</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="closeEditAnswersBtn2">Закрыть</button>
+                <button type="button" class="btn-create" id="saveQuestionsBtn">Сохранить изменения</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- Модальное окно результатов -->
     <div class="modal modal-large" id="resultsModal">

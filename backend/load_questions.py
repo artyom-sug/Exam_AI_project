@@ -37,13 +37,14 @@ def get_or_create_group(db: Session, group_name: str = "Тестовая гру�
     return group
 
 
-def load_questions_from_json(db: Session, group_id: int, json_path: Path):
+def load_questions_from_json(db: Session, group_id: int, json_path: Path, teacher_id: int = None):
     with open(json_path, 'r', encoding='utf-8') as f:
         questions = json.load(f)
     
     for q in questions:
         question = models.QuestionBank(
             group_id=group_id,
+            teacher_id=teacher_id,
             question_text=q.get("question") or q.get("text") or q.get("q"),
             expected_answer=q.get("expected_answer") or q.get("answer", ""),
             topic=q.get("topic", ""),
@@ -55,13 +56,14 @@ def load_questions_from_json(db: Session, group_id: int, json_path: Path):
     print(f"Загружено {len(questions)} вопросов из {json_path}")
 
 
-def load_questions_from_csv(db: Session, group_id: int, csv_path: Path):
+def load_questions_from_csv(db: Session, group_id: int, csv_path: Path, teacher_id: int = None):
     with open(csv_path, 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         count = 0
         for row in reader:
             question = models.QuestionBank(
                 group_id=group_id,
+                teacher_id=teacher_id,
                 question_text=row.get("question") or row.get("вопрос", ""),
                 expected_answer=row.get("answer") or row.get("ответ", ""),
                 topic=row.get("topic") or row.get("тема", ""),
@@ -158,14 +160,14 @@ def load_custom_file():
         if args.json:
             json_path = Path(args.json)
             if json_path.exists():
-                load_questions_from_json(db, group.id, json_path)
+                load_questions_from_json(db, group.id, json_path, group.teacher_id)
             else:
                 print(f"Файл не найден: {json_path}")
         
         if args.csv:
             csv_path = Path(args.csv)
             if csv_path.exists():
-                load_questions_from_csv(db, group.id, csv_path)
+                load_questions_from_csv(db, group.id, csv_path, group.teacher_id)
             else:
                 print(f"Файл не найден: {csv_path}")
         
