@@ -73,8 +73,8 @@
                                     <input type="radio" name="settingsQuestionSource" value="auto" checked>
                                     <span class="radio-custom"></span>
                                     <div class="radio-content">
-                                        <strong>🤖 Генерация вопросов по образцу</strong>
-                                        <small>Новые вопросы генерируются на основе эталонных вопросов и лекций (хранятся только на время сессии студента)</small>
+                                        <strong>🤖 Генерация вопросов по лекциям</strong>
+                                        <small>Вопросы и эталонные ответы формируются на основе содержания лекций из базы данных (хранятся только на время сессии студента)</small>
                                     </div>
                                 </label>
                                 <label class="radio-label">
@@ -88,17 +88,6 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label>Материалы лекций (PDF) для этой группы</label>
-                            <div class="file-upload">
-                                <input type="file" id="settingsLectureFiles" accept=".pdf" multiple style="display: none;">
-                                <button type="button" class="upload-btn" onclick="document.getElementById('settingsLectureFiles').click()">
-                                    📁 Загрузить PDF-лекции
-                                </button>
-                                <div class="file-list" id="settingsLectureFilesList"></div>
-                            </div>
-                        </div>
-                        
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Количество вопросов</label>

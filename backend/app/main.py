@@ -38,18 +38,56 @@ def fetch_teacher_questions(db: Session, teacher_id: int):
         models.QuestionBank.teacher_id == teacher_id
     ).all()
 
-def get_teacher_lecture_text(db: Session, teacher_id: int) -> str:
-    group_ids = [
+def get_teacher_group_ids(db: Session, teacher_id: int) -> List[int]:
+    return [
         g.id for g in db.query(models.Group).filter(
             models.Group.teacher_id == teacher_id
         ).all()
     ]
+
+def get_teacher_lecture_text(db: Session, teacher_id: int) -> str:
+    group_ids = get_teacher_group_ids(db, teacher_id)
     if not group_ids:
         return ""
     lectures = db.query(models.Lecture).filter(
         models.Lecture.group_id.in_(group_ids)
     ).all()
     return " ".join(lec.text_content for lec in lectures if lec.text_content)
+
+def get_teacher_lecture_chunks(db: Session, teacher_id: int) -> List[dict]:
+    """Фрагменты лекций из БД для генерации вопросов."""
+    group_ids = get_teacher_group_ids(db, teacher_id)
+    if not group_ids:
+        return []
+    
+    chunks = db.query(models.Chunk).join(models.Lecture).filter(
+        models.Lecture.group_id.in_(group_ids)
+    ).order_by(models.Lecture.id, models.Chunk.chunk_index).all()
+    
+    result = []
+    for chunk in chunks:
+        if chunk.text and chunk.text.strip():
+            result.append({
+                "lecture_id": chunk.lecture_id,
+                "filename": chunk.lecture.filename if chunk.lecture else "",
+                "text": chunk.text.strip()
+            })
+    
+    if not result:
+        lectures = db.query(models.Lecture).filter(
+            models.Lecture.group_id.in_(group_ids)
+        ).all()
+        for lec in lectures:
+            if lec.text_content and lec.text_content.strip():
+                for part in embeddings_service.split_into_chunks(lec.text_content):
+                    if part.strip():
+                        result.append({
+                            "lecture_id": lec.id,
+                            "filename": lec.filename,
+                            "text": part.strip()
+                        })
+    
+    return result
 
 def clear_session_questions(db: Session, student_id: int):
     db.query(models.SessionQuestion).filter(
@@ -317,20 +355,15 @@ async def generate_questions_for_group(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    lectures = db.query(models.Lecture).filter(models.Lecture.group_id == group_id).all()
+    lecture_chunks = get_teacher_lecture_chunks(db, group.teacher_id)
     
-    if not lectures:
-        raise HTTPException(status_code=400, detail="No lectures uploaded for this group")
-    
-    combined_text = " ".join([lec.text_content for lec in lectures if lec.text_content])
-    
-    if not combined_text:
-        raise HTTPException(status_code=400, detail="No text content in lectures")
+    if not lecture_chunks:
+        raise HTTPException(status_code=400, detail="No lecture content in database")
     
     num = num_questions or group.questions_count
-    questions = llm_service.generate_questions(combined_text, num)
+    generated = llm_service.generate_questions_from_lectures(lecture_chunks, num)
     
-    return {"questions": questions}
+    return {"questions": generated}
 
 @app.post("/api/student/validate")
 async def validate_student(
@@ -428,25 +461,23 @@ async def start_exam(
                 session_question_ids.append(None)
     
     elif group.use_auto_generation == 1:
-        combined_text = get_teacher_lecture_text(db, teacher_id)
-        teacher_questions = fetch_teacher_questions(db, teacher_id)
+        lecture_chunks = get_teacher_lecture_chunks(db, teacher_id)
         
-        example_questions = [
-            {"question": q.question_text, "expected_answer": q.expected_answer or ""}
-            for q in teacher_questions
-        ]
-        
-        if combined_text and example_questions:
-            generated = llm_service.generate_questions_from_examples(
-                combined_text, example_questions, group.questions_count
+        if not lecture_chunks:
+            raise HTTPException(
+                status_code=400,
+                detail="Для генерации вопросов необходимо загрузить лекции в базу данных"
             )
-        elif combined_text:
-            generated = [
-                {"question": q, "expected_answer": llm_service.generate_reference_answer(q, combined_text)}
-                for q in llm_service.generate_questions(combined_text, group.questions_count)
-            ]
-        else:
-            generated = []
+        
+        generated = llm_service.generate_questions_from_lectures(
+            lecture_chunks, group.questions_count
+        )
+        
+        if len(generated) < group.questions_count:
+            raise HTTPException(
+                status_code=400,
+                detail="Не удалось сгенерировать достаточно вопросов по материалам лекций"
+            )
         
         for i, item in enumerate(generated):
             sq = models.SessionQuestion(
@@ -468,15 +499,10 @@ async def start_exam(
 
     
     if not questions_list:
-        for i in range(group.questions_count):
-            questions_list.append(
-                schemas.Question(
-                    id=i + 1,
-                    text=f"Вопрос {i + 1}. Опишите основные концепции изученного материала?"
-                )
-            )
-            question_ids.append(-1)
-            session_question_ids.append(None)
+        raise HTTPException(
+            status_code=400,
+            detail="Не удалось подготовить вопросы для экзамена. Проверьте настройки группы и наличие лекций."
+        )
 
     exam_duration = group.time_per_question or 5400
     
@@ -588,8 +614,8 @@ async def submit_exam(
         except Exception as e:
             logger.error(f"Evaluation error for question {i+1}: {e}")
             evaluation = {
-                "score": 50.0,
-                "comment": "Ответ принят. Автоматическая оценка временно недоступна."
+                "score": 70.0,
+                "comment": "Ответ принят и засчитан. Автоматическая детальная оценка временно недоступна."
             }
         
         score = evaluation["score"]

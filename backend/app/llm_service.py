@@ -83,19 +83,19 @@ class LLMService:
             return ""
     
     def _parse_evaluation(self, response: str, answer: str) -> Dict[str, Any]:
-        score = 65
-        comment = "Старайтесь подробнее раскрывать тему в следующих вопросах."
+        score = 75
+        comment = "Хорошая попытка ответить на вопрос. Продолжайте в том же духе."
         
         try:
             score_match = re.search(r'Оценка:\s*(\d+)', response)
             if score_match:
-                score = min(100, max(30, int(score_match.group(1))))
-            elif len(answer.strip()) > 50:
+                score = min(100, max(50, int(score_match.group(1))))
+            elif len(answer.strip()) > 40:
+                score = 80
+            elif len(answer.strip()) > 15:
                 score = 70
-            elif len(answer.strip()) > 20:
-                score = 55
             elif len(answer.strip()) > 0:
-                score = 45
+                score = 58
             comment_match = re.search(r'Комментарий:\s*(.+)', response, re.DOTALL)
             if comment_match:
                 comment = comment_match.group(1).strip()
@@ -106,103 +106,96 @@ class LLMService:
     
     def _lenient_rubric(self) -> str:
         return """
-ВАЖНО: Будь максимально снисходителен и доброжелателен. Студент может выражать мысль своими словами.
-Поощряй любые попытки ответить. Если студент уловил основную идею — ставь высокий балл.
-Не требуй дословного совпадения с эталоном. Синонимы и перефразирование засчитываются полностью.
-Критерии оценки (мягкие):
-- 90-100: Понята суть, раскрыты ключевые моменты (даже если неполно)
-- 75-89: Хорошее понимание, есть небольшие упущения
-- 60-74: Частичное понимание, основные идеи уловлены
-- 45-59: Слабое понимание, но есть правильные элементы
-- 30-44: Минимальное понимание, есть хоть что-то по теме
-- 0-29: Ответ полностью отсутствует или не по теме
-По умолчанию ставь не ниже 45, если студент хоть что-то написал по теме.
-По умолчанию ставь не ниже 60, если ответ содержательный (более 30 слов по теме).
+ВАЖНО: Оценивай максимально лояльно и поддерживающе. Студент может выражать мысль своими словами.
+Любая попытка ответить по теме заслуживает хорошей оценки. Если уловлена основная идея — ставь высокий балл.
+Не требуй дословного совпадения с эталоном. Синонимы, перефразирование и неполные ответы засчитываются щедро.
+Ошибки в формулировках и мелкие неточности не должны сильно снижать балл.
+Критерии оценки (очень мягкие):
+- 92-100: Понята суть, есть ключевые моменты (даже кратко)
+- 80-91: Хорошее понимание, небольшие упущения допустимы
+- 68-79: Частичное понимание, основные идеи уловлены
+- 55-67: Слабое, но осмысленное понимание темы
+- 50-54: Минимальное понимание, есть хоть что-то по теме
+- 0-49: Только если ответ пустой, совсем не по теме или полностью неверный
+По умолчанию ставь не ниже 58, если студент хоть что-то написал по теме.
+По умолчанию ставь не ниже 75, если ответ содержательный (более 20 слов по теме).
 Формат ответа (строго):
 Оценка: X
-Комментарий: текст (начни с похвалы, затем мягко укажи, что можно улучшить)
+Комментарий: текст (начни с искренней похвалы, затем мягко укажи, что можно улучшить)
 """
     
-    def generate_questions(self, context: str, num_questions: int = 5) -> List[str]:
+    def _parse_question_answer_block(self, text: str) -> Dict[str, str]:
+        q_match = re.search(r'ВОПРОС:\s*(.+?)(?=ОТВЕТ:|$)', text, re.DOTALL | re.IGNORECASE)
+        a_match = re.search(r'ОТВЕТ:\s*(.+)', text, re.DOTALL | re.IGNORECASE)
+        if not q_match:
+            return {}
+        question_text = q_match.group(1).strip()
+        expected = a_match.group(1).strip() if a_match else ""
+        if len(question_text) < 10:
+            return {}
+        return {"question": question_text, "expected_answer": expected}
+    
+    def _generate_question_answer_from_chunk(self, lecture_text: str, source_name: str = "") -> Dict[str, str]:
+        source_hint = f"\nИсточник: {source_name}" if source_name else ""
         prompt = f"""
-Ты - преподаватель, который составляет экзаменационные вопросы.
+Ты - преподаватель. На основе ТОЛЬКО приведённого фрагмента лекции составь один экзаменационный вопрос
+и эталонный ответ. Эталонный ответ должен содержать ключевые факты исключительно из этого фрагмента.
+{source_hint}
 
-Материал лекции:
-{context[:3000]}
+ФРАГМЕНТ ЛЕКЦИИ:
+{lecture_text[:4000]}
 
-Составь {num_questions} вопросов для проверки понимания материала. Вопросы должны:
-1. Охватывать ключевые темы лекции
-2. Требовать развернутого ответа
-3. Проверять понимание, а не просто запоминание
-
-Ответь ТОЛЬКО списком вопросов, каждый вопрос с новой строки, без нумерации.
+Формат ответа (строго):
+ВОПРОС: текст вопроса
+ОТВЕТ: эталонный ответ на основе фрагмента лекции
 """
-        response = self.generate(prompt, temperature=0.8)
-        questions = [q.strip() for q in response.strip().split('\n') if q.strip() and len(q.strip()) > 10]
-        questions = [re.sub(r'^\d+[\.\)]\s*', '', q) for q in questions]
-        while len(questions) < num_questions:
-            questions.append("Опишите основные концепции из материала лекции.")
-        return questions[:num_questions]
+        response = self.generate(prompt, temperature=0.7, max_tokens=1500)
+        return self._parse_question_answer_block(response)
     
-    def generate_questions_from_examples(
+    def generate_questions_from_lectures(
         self,
-        context: str,
-        example_questions: List[Dict[str, str]],
+        lecture_chunks: List[Dict[str, str]],
         num_questions: int = 5
     ) -> List[Dict[str, str]]:
-        """Генерация новых вопросов по образцу существующих с эталонными ответами."""
-        examples_text = ""
-        for i, ex in enumerate(example_questions[:5], 1):
-            examples_text += f"\nПример {i}:\nВопрос: {ex.get('question', '')}\nЭталонный ответ: {ex.get('expected_answer', '')}\n"
+        """Генерация вопросов и эталонных ответов только на основе содержания лекций из БД."""
+        import random
         
-        prompt = f"""
-Ты - преподаватель, составляющий экзаменационные вопросы.
-Материал лекций:
-{context[:4000]}
-Ниже примеры существующих вопросов и эталонных ответов. Составь {num_questions} НОВЫХ вопросов
-в том же стиле и на те же темы, но не копируй примеры дословно. Вопросы должны проверять понимание материала лекций.
-{examples_text}
-Для каждого вопроса также составь краткий эталонный ответ на основе материала лекций.
-Формат ответа (строго для каждого вопроса):
-ВОПРОС: текст вопроса
-ОТВЕТ: эталонный ответ
----
-"""
-        response = self.generate(prompt, temperature=0.8, max_tokens=4000)
+        if not lecture_chunks:
+            return []
         
+        pool = [c for c in lecture_chunks if c.get("text", "").strip()]
+        if not pool:
+            return []
+        
+        random.shuffle(pool)
         results = []
-        blocks = re.split(r'---+', response)
+        seen_questions = set()
+        attempts = 0
+        max_attempts = max(num_questions * 4, len(pool) * 2)
+        chunk_index = 0
         
-        for block in blocks:
-            block = block.strip()
-            if not block:
+        while len(results) < num_questions and attempts < max_attempts:
+            chunk = pool[chunk_index % len(pool)]
+            chunk_index += 1
+            attempts += 1
+            
+            item = self._generate_question_answer_from_chunk(
+                chunk["text"],
+                chunk.get("filename", "")
+            )
+            if not item:
                 continue
-            q_match = re.search(r'ВОПРОС:\s*(.+?)(?=ОТВЕТ:|$)', block, re.DOTALL | re.IGNORECASE)
-            a_match = re.search(r'ОТВЕТ:\s*(.+)', block, re.DOTALL | re.IGNORECASE)
-            if q_match:
-                question_text = q_match.group(1).strip()
-                expected = a_match.group(1).strip() if a_match else ""
-                if len(question_text) > 10:
-                    results.append({"question": question_text, "expected_answer": expected})
-        
-        if len(results) < num_questions:
-            fallback_questions = self.generate_questions(context, num_questions - len(results))
-            for fq in fallback_questions:
-                expected = self.generate_reference_answer(fq, context)
-                results.append({"question": fq, "expected_answer": expected})
+            
+            q_key = item["question"].lower()[:80]
+            if q_key in seen_questions:
+                continue
+            if not item.get("expected_answer", "").strip():
+                continue
+            
+            seen_questions.add(q_key)
+            results.append(item)
         
         return results[:num_questions]
-    
-    def generate_reference_answer(self, question: str, context: str = "") -> str:
-        context_part = f"\nМатериал лекции:\n{context[:3000]}" if context else ""
-        prompt = f"""
-Ты - эксперт по предмету. Составь краткий эталонный ответ на экзаменационный вопрос.
-{context_part}
-Вопрос: {question}
-Ответь только текстом эталонного ответа, без пояснений.
-"""
-        response = self.generate(prompt, temperature=0.5, max_tokens=500)
-        return response.strip() if response else "Эталонный ответ не сгенерирован."
     
     def evaluate_answer(self, question: str, answer: str, context: str = "") -> Dict[str, Any]:
         if not answer or not answer.strip():

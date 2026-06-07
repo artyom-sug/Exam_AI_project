@@ -46,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('examSettingsForm').addEventListener('submit', saveGroupSettings);
     document.getElementById('editAnswersBtn').addEventListener('click', openEditAnswersModal);
     document.getElementById('createGroupBtn').addEventListener('click', createGroup);
-    document.getElementById('settingsLectureFiles').addEventListener('change', handleLectureFilesSelected);
     document.getElementById('closeEditAnswersBtn').addEventListener('click', () => closeModal('editAnswersModal'));
     document.getElementById('closeEditAnswersBtn2').addEventListener('click', () => closeModal('editAnswersModal'));
     document.getElementById('saveQuestionsBtn').addEventListener('click', saveQuestionsEdits);
@@ -156,10 +155,6 @@ async function saveGroupSettings(e) {
         const idx = allGroups.findIndex(g => g.id === updated.id);
         if (idx >= 0) allGroups[idx] = updated;
         
-        await uploadLecturesForGroup(currentSettingsGroupId);
-        document.getElementById('settingsLectureFiles').value = '';
-        document.getElementById('settingsLectureFilesList').innerHTML = '';
-        
         alert('Настройки успешно сохранены!');
     } catch (error) {
         console.error('Ошибка:', error);
@@ -252,39 +247,6 @@ async function saveQuestionsEdits() {
     } finally {
         saveBtn.textContent = 'Сохранить изменения';
         saveBtn.disabled = false;
-    }
-}
-
-function handleLectureFilesSelected(e) {
-    const list = document.getElementById('settingsLectureFilesList');
-    list.innerHTML = '';
-    Array.from(e.target.files).forEach(file => {
-        const tag = document.createElement('div');
-        tag.className = 'file-tag';
-        tag.textContent = `📄 ${file.name}`;
-        list.appendChild(tag);
-    });
-}
-
-async function uploadLecturesForGroup(groupId) {
-    const files = document.getElementById('settingsLectureFiles').files;
-    if (!files.length) return;
-    
-    const token = localStorage.getItem('token');
-    const headers = { 'Authorization': `Bearer ${token}` };
-    
-    for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch(`${API_BASE_URL}/groups/${groupId}/upload-lecture`, {
-            method: 'POST',
-            headers,
-            body: formData
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(`Ошибка загрузки "${file.name}": ${err.detail || res.statusText}`);
-        }
     }
 }
 
@@ -451,7 +413,6 @@ function renderResultsTable(results) {
             <td>${student.answered} / ${student.total}</td>
             <td>${student.score} / 100</td>
             <td class="action-links">
-                <button class="action-link" onclick="viewStudentAnswers(${student.id})">Ответы</button>
                 <button class="action-link" onclick="gradeStudent(${student.id})">Оценка</button>
             </td>
         </tr>
