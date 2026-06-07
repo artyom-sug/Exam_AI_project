@@ -123,8 +123,8 @@ class LLMService:
 Комментарий: текст (начни с похвалы, затем мягко укажи, что можно улучшить)
 """
     
-def generate_questions(self, context: str, num_questions: int = 5) -> List[str]:
-    prompt = f"""
+    def generate_questions(self, context: str, num_questions: int = 5) -> List[str]:
+        prompt = f"""
 Ты - преподаватель, который составляет экзаменационные вопросы.
 
 Материал лекции:
@@ -137,16 +137,12 @@ def generate_questions(self, context: str, num_questions: int = 5) -> List[str]:
 
 Ответь ТОЛЬКО списком вопросов, каждый вопрос с новой строки, без нумерации.
 """
-        
-    response = self.generate(prompt, temperature=0.8)
-        
-    questions = [q.strip() for q in response.strip().split('\n') if q.strip() and len(q.strip()) > 10]
-    questions = [re.sub(r'^\d+[\.\)]\s*', '', q) for q in questions]
-        
-    while len(questions) < num_questions:
-        questions.append("Опишите основные концепции из материала лекции.")
-        
-    return questions[:num_questions]
+        response = self.generate(prompt, temperature=0.8)
+        questions = [q.strip() for q in response.strip().split('\n') if q.strip() and len(q.strip()) > 10]
+        questions = [re.sub(r'^\d+[\.\)]\s*', '', q) for q in questions]
+        while len(questions) < num_questions:
+            questions.append("Опишите основные концепции из материала лекции.")
+        return questions[:num_questions]
     
     def generate_questions_from_examples(
         self,

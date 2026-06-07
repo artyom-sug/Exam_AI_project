@@ -33,7 +33,7 @@ def group_to_response(group: models.Group) -> schemas.GroupResponse:
         created_at=group.created_at
     )
 
-def get_teacher_questions(db: Session, teacher_id: int):
+def fetch_teacher_questions(db: Session, teacher_id: int):
     return db.query(models.QuestionBank).filter(
         models.QuestionBank.teacher_id == teacher_id
     ).all()
@@ -139,6 +139,32 @@ async def get_current_teacher_info(
 ):
     return current_teacher
 
+@app.get("/api/teacher/questions", response_model=List[schemas.QuestionBankResponse])
+async def list_teacher_questions(
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    return fetch_teacher_questions(db, current_teacher.id)
+
+@app.put("/api/teacher/questions/{question_id}", response_model=schemas.QuestionBankResponse)
+async def update_teacher_question(
+    question_id: int,
+    question_update: schemas.QuestionBankUpdate,
+    current_teacher: models.Teacher = Depends(auth.get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    question = db.query(models.QuestionBank).filter(
+        models.QuestionBank.id == question_id,
+        models.QuestionBank.teacher_id == current_teacher.id
+    ).first()
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    for key, value in question_update.dict(exclude_unset=True).items():
+        setattr(question, key, value)
+    db.commit()
+    db.refresh(question)
+    return question
+
 @app.post("/api/groups", response_model=schemas.GroupResponse)
 async def create_group(
     group: schemas.GroupCreate,
@@ -146,9 +172,14 @@ async def create_group(
     db: Session = Depends(get_db)
 ):
     duration = group.exam_duration_seconds if group.exam_duration_seconds is not None else 5400
+    access_key = (group.access_key or group.name).upper()
+    existing = db.query(models.Group).filter(models.Group.access_key == access_key).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Group with this access key already exists")
     db_group = models.Group(
         name=group.name,
         teacher_id=current_teacher.id,
+        access_key=access_key,
         questions_count=group.questions_count,
         time_per_question=duration,
         use_auto_generation=1 if group.use_auto_generation else 0
@@ -156,7 +187,7 @@ async def create_group(
     db.add(db_group)
     db.commit()
     db.refresh(db_group)
-    return db_group
+    return group_to_response(db_group)
 
 @app.get("/api/groups", response_model=List[schemas.GroupResponse])
 async def get_groups(
@@ -331,14 +362,6 @@ async def start_exam(
     session_id: str,
     db: Session = Depends(get_db)
 ):
-    if session_id in exam_sessions_questions:
-        session_data = exam_sessions_questions[session_id]
-        return schemas.ExamStartResponse(
-            questions=session_data["questions"],
-            question_ids=session_data["question_ids"],
-            exam_duration_seconds=session_data["exam_duration_seconds"]
-        )
-    
     student = db.query(models.Student).filter(
         models.Student.exam_session_id == session_id
     ).first()
@@ -347,6 +370,39 @@ async def start_exam(
         raise HTTPException(status_code=404, detail="Session not found")
     
     group = student.group
+    exam_duration = group.time_per_question or 5400
+
+    if session_id in exam_sessions_questions:
+        session_data = exam_sessions_questions[session_id]
+        return schemas.ExamStartResponse(
+            questions=session_data["questions"],
+            question_ids=session_data["question_ids"],
+            exam_duration_seconds=session_data.get("exam_duration_seconds", exam_duration)
+        )
+
+    existing_session_qs = db.query(models.SessionQuestion).filter(
+        models.SessionQuestion.student_id == student.id
+    ).order_by(models.SessionQuestion.question_number).all()
+
+    if existing_session_qs:
+        questions_list = [
+            schemas.Question(id=sq.question_number, text=sq.question_text)
+            for sq in existing_session_qs
+        ]
+        question_ids = [-1] * len(existing_session_qs)
+        session_question_ids = [sq.id for sq in existing_session_qs]
+        exam_sessions_questions[session_id] = {
+            "questions": questions_list,
+            "question_ids": question_ids,
+            "session_question_ids": session_question_ids,
+            "exam_duration_seconds": exam_duration
+        }
+        return schemas.ExamStartResponse(
+            questions=questions_list,
+            question_ids=question_ids,
+            exam_duration_seconds=exam_duration
+        )
+    
     teacher_id = group.teacher_id
     questions_list = []
     question_ids = []
@@ -355,7 +411,7 @@ async def start_exam(
     clear_session_questions(db, student.id)
     
     if group.use_auto_generation == 0:
-        db_questions = get_teacher_questions(db, teacher_id)
+        db_questions = fetch_teacher_questions(db, teacher_id)
         
         if db_questions:
             import random
@@ -373,7 +429,7 @@ async def start_exam(
     
     elif group.use_auto_generation == 1:
         combined_text = get_teacher_lecture_text(db, teacher_id)
-        teacher_questions = get_teacher_questions(db, teacher_id)
+        teacher_questions = fetch_teacher_questions(db, teacher_id)
         
         example_questions = [
             {"question": q.question_text, "expected_answer": q.expected_answer or ""}
@@ -457,6 +513,31 @@ async def submit_exam(
     session_question_ids = session_data.get("session_question_ids", [])
     session_questions = session_data.get("questions", [])
     
+    if not session_questions:
+        existing_sq = db.query(models.SessionQuestion).filter(
+            models.SessionQuestion.student_id == student.id
+        ).order_by(models.SessionQuestion.question_number).all()
+        if existing_sq:
+            session_questions = [
+                schemas.Question(id=sq.question_number, text=sq.question_text)
+                for sq in existing_sq
+            ]
+            question_ids = [-1] * len(existing_sq)
+            session_question_ids = [sq.id for sq in existing_sq]
+        elif not question_ids:
+            teacher_questions = fetch_teacher_questions(db, group.teacher_id)
+            if teacher_questions and group.use_auto_generation == 0:
+                import random
+                selected = random.sample(
+                    teacher_questions,
+                    min(len(submit_data.answers), len(teacher_questions))
+                )
+                question_ids = [q.id for q in selected[:len(submit_data.answers)]]
+                session_questions = [
+                    schemas.Question(id=i + 1, text=q.question_text)
+                    for i, q in enumerate(selected[:len(submit_data.answers)])
+                ]
+    
     results = []
     total = 0
     
@@ -466,7 +547,8 @@ async def submit_exam(
         question_id = None
         
         if i < len(session_questions):
-            question_text = session_questions[i].text
+            q_item = session_questions[i]
+            question_text = q_item.text if hasattr(q_item, "text") else q_item.get("text", question_text)
         
         if i < len(question_ids) and question_ids[i] != -1:
             db_question = db.query(models.QuestionBank).filter(
@@ -476,32 +558,39 @@ async def submit_exam(
                 question_text = db_question.question_text
                 expected_answer = db_question.expected_answer
                 question_id = db_question.id
-            elif i < len(session_question_ids) and session_question_ids[i]:
-                sq = db.query(models.SessionQuestion).filter(
+        elif i < len(session_question_ids) and session_question_ids[i]:
+            sq = db.query(models.SessionQuestion).filter(
                 models.SessionQuestion.id == session_question_ids[i]
             ).first()
             if sq:
                 question_text = sq.question_text
                 expected_answer = sq.expected_answer
         
-        if expected_answer:
-            evaluation = llm_service.evaluate_answer_with_expected(
-                question_text, answer, expected_answer
-            )
-        else:
-            relevant_chunks = embeddings_service.search_similar_chunks_for_teacher(
-                db, group.teacher_id, answer, top_k=3
-            )
-            
-            if relevant_chunks:
-                evaluation = llm_service.check_answer_with_rag(
-                    question_text, answer, relevant_chunks
+        try:
+            if expected_answer:
+                evaluation = llm_service.evaluate_answer_with_expected(
+                    question_text, answer, expected_answer
                 )
             else:
-                lecture_text = get_teacher_lecture_text(db, group.teacher_id)
-                evaluation = llm_service.evaluate_answer(
-                    question_text, answer, lecture_text
+                relevant_chunks = embeddings_service.search_similar_chunks_for_teacher(
+                    db, group.teacher_id, answer, top_k=3
                 )
+                
+                if relevant_chunks:
+                    evaluation = llm_service.check_answer_with_rag(
+                        question_text, answer, relevant_chunks
+                    )
+                else:
+                    lecture_text = get_teacher_lecture_text(db, group.teacher_id)
+                    evaluation = llm_service.evaluate_answer(
+                        question_text, answer, lecture_text
+                    )
+        except Exception as e:
+            logger.error(f"Evaluation error for question {i+1}: {e}")
+            evaluation = {
+                "score": 50.0,
+                "comment": "Ответ принят. Автоматическая оценка временно недоступна."
+            }
         
         score = evaluation["score"]
         comment = evaluation["comment"]
@@ -532,9 +621,12 @@ async def submit_exam(
     if session_id in exam_sessions_questions:
         del exam_sessions_questions[session_id]
     
+    avg_score = total / len(submit_data.answers) if submit_data.answers else 0
+    display_total = student.manual_total_score if student.manual_total_score is not None else avg_score
+    
     return schemas.ExamResultResponse(
         results=results,
-        total_score=total / len(submit_data.answers)
+        total_score=display_total
     )
 
 @app.post("/api/groups/{group_id}/process-lecture/{lecture_id}")
@@ -769,7 +861,7 @@ async def get_group_questions(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
     
-    questions = get_teacher_questions(db, group.teacher_id)
+    questions = fetch_teacher_questions(db, group.teacher_id)
     
     return questions
 

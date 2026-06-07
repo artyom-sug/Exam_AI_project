@@ -20,8 +20,9 @@ class TokenResponse(BaseModel):
 
 class GroupCreate(BaseModel):
     name: str
+    access_key: Optional[str] = None
     questions_count: Optional[int] = 5
-    time_per_question: Optional[int] = 5400
+    exam_duration_seconds: Optional[int] = 5400
     use_auto_generation: Optional[bool] = True
 
 class GroupResponse(BaseModel):

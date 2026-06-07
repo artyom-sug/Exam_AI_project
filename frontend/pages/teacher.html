@@ -10,7 +10,6 @@
 </head>
 <body>
     <div class="teacher-container">
-        <!-- Шапка -->
         <div class="teacher-header">
             <div class="teacher-info">
                 <h2 id="teacherName">Иванов Иван Петрович</h2>
@@ -21,7 +20,6 @@
             </button>
         </div>
 
-        <!-- Карточки действий -->
         <div class="actions-grid">
             <div class="action-card" id="examSettingsBtn">
                 <div class="card-icon">⚙️</div>
@@ -46,27 +44,37 @@
                 <button class="modal-close" id="closeSettingsModalBtn">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="settings-actions-top">
+                    <button type="button" class="btn-create" id="editAnswersBtn">📝 Редактировать эталонные ответы</button>
+                    <p class="settings-hint">Вопросы и эталонные ответы общие для всех групп. Настройки ниже задаются отдельно для каждой группы.</p>
+                </div>
+
                 <div class="group-selector">
                     <label>Выберите группу</label>
                     <select id="settingsGroupSelect">
                         <option value="">-- Выберите группу --</option>
                     </select>
                 </div>
-                <div id="settingsFormBlock" style="display: none;">
-                    <div class="settings-actions-top">
-                        <button type="button" class="btn-create" id="editAnswersBtn">📝 Редактировать эталонные ответы</button>
-                    </div>
 
+                <div class="create-group-block">
+                    <label>Добавить новую группу</label>
+                    <div class="form-row">
+                        <input type="text" id="newGroupName" placeholder="Название / ключ группы (например: ИВТ-21-1)">
+                        <button type="button" class="btn-create" id="createGroupBtn">Создать группу</button>
+                    </div>
+                </div>
+
+                <div id="settingsFormBlock" style="display: none;">
                     <form id="examSettingsForm">
                         <div class="form-group">
-                            <label>Режим вопросов</label>
+                            <label>Режим вопросов для этой группы</label>
                             <div class="radio-group">
                                 <label class="radio-label">
                                     <input type="radio" name="settingsQuestionSource" value="auto" checked>
                                     <span class="radio-custom"></span>
                                     <div class="radio-content">
                                         <strong>🤖 Генерация вопросов по образцу</strong>
-                                        <small>Новые вопросы генерируются на основе существующих и лекций (только на время сессии студента)</small>
+                                        <small>Новые вопросы генерируются на основе эталонных вопросов и лекций (хранятся только на время сессии студента)</small>
                                     </div>
                                 </label>
                                 <label class="radio-label">
@@ -74,12 +82,22 @@
                                     <span class="radio-custom"></span>
                                     <div class="radio-content">
                                         <strong>📋 Использовать существующие вопросы</strong>
-                                        <small>Студентам выдаются вопросы из базы с эталонными ответами</small>
+                                        <small>Студентам выдаются вопросы из общей базы с эталонными ответами</small>
                                     </div>
                                 </label>
                             </div>
                         </div>
-                        
+
+                        <div class="form-group">
+                            <label>Материалы лекций (PDF) для этой группы</label>
+                            <div class="file-upload">
+                                <input type="file" id="settingsLectureFiles" accept=".pdf" multiple style="display: none;">
+                                <button type="button" class="upload-btn" onclick="document.getElementById('settingsLectureFiles').click()">
+                                    📁 Загрузить PDF-лекции
+                                </button>
+                                <div class="file-list" id="settingsLectureFilesList"></div>
+                            </div>
+                        </div>
                         
                         <div class="form-row">
                             <div class="form-group">
@@ -88,7 +106,7 @@
                             </div>
                             <div class="form-group">
                                 <label>Общее время экзамена (минуты)</label>
-                                <input type="number" id="settingsExamDuration" min="1" value="90">
+                                <input type="number" id="settingsExamDuration" value="90">
                             </div>
                         </div>
 
@@ -96,9 +114,10 @@
                             <label>Ключ доступа группы</label>
                             <input type="text" id="settingsAccessKey" readonly>
                         </div>
+
                         <div class="modal-actions">
                             <button type="button" class="btn-cancel" id="cancelSettingsBtn">Отмена</button>
-                            <button type="submit" class="btn-create">Сохранить настройки</button>
+                            <button type="submit" class="btn-create">Сохранить настройки группы</button>
                         </div>
                     </form>
                 </div>
@@ -106,27 +125,24 @@
         </div>
     </div>
     
- <!-- Модальное окно редактирования эталонных ответов -->
- <div class="modal modal-large" id="editAnswersModal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>Эталонные ответы</h3>
-            <button class="modal-close" id="closeEditAnswersBtn">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p class="settings-hint">Вопросы и эталонные ответы общие для всех групп. Изменения применяются ко всем экзаменам.</p>
-            <div id="questionsEditList" class="questions-edit-list">
-                <p style="text-align: center; color: #888;">Загрузка вопросов...</p>
+    <div class="modal modal-large" id="editAnswersModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Эталонные ответы</h3>
+                <button class="modal-close" id="closeEditAnswersBtn">&times;</button>
             </div>
-            <div class="modal-actions">
-                <button type="button" class="btn-cancel" id="closeEditAnswersBtn2">Закрыть</button>
-                <button type="button" class="btn-create" id="saveQuestionsBtn">Сохранить изменения</button>
+            <div class="modal-body">
+                <div id="questionsEditList" class="questions-edit-list">
+                    <p style="text-align: center; color: #888;">Загрузка вопросов...</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="closeEditAnswersBtn2">Закрыть</button>
+                    <button type="button" class="btn-create" id="saveQuestionsBtn">Сохранить изменения</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-    <!-- Модальное окно результатов -->
     <div class="modal modal-large" id="resultsModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -134,7 +150,6 @@
                 <button class="modal-close" id="closeResultsModalBtn">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- Выбор группы -->
                 <div class="group-selector">
                     <label>Выберите группу</label>
                     <select id="groupSelect">
@@ -142,13 +157,11 @@
                     </select>
                 </div>
 
-                <!-- Поиск -->
                 <div class="search-box">
                     <input type="text" id="studentSearch" placeholder="Поиск по ФИО студента...">
                     <span class="search-icon">🔍</span>
                 </div>
 
-                <!-- Таблица результатов -->
                 <div class="results-table-wrapper">
                     <table class="results-table">
                         <thead>
@@ -168,7 +181,6 @@
                     </table>
                 </div>
 
-                <!-- Статистика -->
                 <div class="stats-container">
                     <div class="stat-card">
                         <div class="stat-label">Средний балл</div>
@@ -183,7 +195,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно ответов студента -->
     <div class="modal modal-large" id="studentAnswersModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -195,9 +206,7 @@
                     <h4 id="studentAnswersName">Иванов Иван Иванович</h4>
                     <div class="student-score" id="studentAnswersScore">Балл: — / 100 · Ответил на вопросов: — / —</div>
                 </div>
-                <div class="answers-list" id="answersList">
-                    <!-- Список ответов будет здесь -->
-                </div>
+                <div class="answers-list" id="answersList"></div>
                 <div class="modal-actions">
                     <button class="btn-create" id="saveGradesBtn" style="display: none;">Сохранить оценки</button>
                     <button class="btn-cancel" id="closeAnswersModal">Закрыть</button>

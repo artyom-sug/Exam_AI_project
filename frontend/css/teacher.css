@@ -624,6 +624,28 @@ body {
 .settings-actions-top {
     margin-bottom: 24px;
 }
+
+.create-group-block {
+    margin: 20px 0;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 16px;
+}
+
+.create-group-block .form-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.create-group-block input {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 14px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+}
 .settings-hint {
     color: #666;
     font-size: 14px;

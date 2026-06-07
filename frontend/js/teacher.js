@@ -45,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('settingsGroupSelect').addEventListener('change', loadGroupSettings);
     document.getElementById('examSettingsForm').addEventListener('submit', saveGroupSettings);
     document.getElementById('editAnswersBtn').addEventListener('click', openEditAnswersModal);
+    document.getElementById('createGroupBtn').addEventListener('click', createGroup);
+    document.getElementById('settingsLectureFiles').addEventListener('change', handleLectureFilesSelected);
     document.getElementById('closeEditAnswersBtn').addEventListener('click', () => closeModal('editAnswersModal'));
     document.getElementById('closeEditAnswersBtn2').addEventListener('click', () => closeModal('editAnswersModal'));
     document.getElementById('saveQuestionsBtn').addEventListener('click', saveQuestionsEdits);
@@ -154,6 +156,10 @@ async function saveGroupSettings(e) {
         const idx = allGroups.findIndex(g => g.id === updated.id);
         if (idx >= 0) allGroups[idx] = updated;
         
+        await uploadLecturesForGroup(currentSettingsGroupId);
+        document.getElementById('settingsLectureFiles').value = '';
+        document.getElementById('settingsLectureFilesList').innerHTML = '';
+        
         alert('Настройки успешно сохранены!');
     } catch (error) {
         console.error('Ошибка:', error);
@@ -165,18 +171,13 @@ async function saveGroupSettings(e) {
 }
 
 async function openEditAnswersModal() {
-    if (!currentSettingsGroupId) {
-        alert('Сначала выберите группу');
-        return;
-    }
-    
     openModal('editAnswersModal');
     const list = document.getElementById('questionsEditList');
     list.innerHTML = '<p style="text-align: center;">Загрузка вопросов...</p>';
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE_URL}/groups/${currentSettingsGroupId}/questions`, {
+        const response = await fetch(`${API_BASE_URL}/teacher/questions`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error('Ошибка загрузки вопросов');
@@ -202,19 +203,17 @@ function renderQuestionsEditList() {
             <div class="question-edit-number">Вопрос ${idx + 1}</div>
             <div class="form-group">
                 <label>Текст вопроса</label>
-                 <textarea class="question-text-input" rows="3">${(q.question_text || '').replace(/</g, '&lt;')}</textarea>
+                <textarea class="question-text-input" rows="3">${escapeHtml(q.question_text || '')}</textarea>
             </div>
             <div class="form-group">
                 <label>Эталонный ответ</label>
-                <textarea class="expected-answer-input" rows="5">${(q.expected_answer || '').replace(/</g, '&lt;')}</textarea>
+                <textarea class="expected-answer-input" rows="8">${escapeHtml(q.expected_answer || '')}</textarea>
             </div>
         </div>
     `).join('');
 }
 
 async function saveQuestionsEdits() {
-    if (!currentSettingsGroupId) return;
-    
     const items = document.querySelectorAll('.question-edit-item');
     const token = localStorage.getItem('token');
     const saveBtn = document.getElementById('saveQuestionsBtn');
@@ -229,7 +228,7 @@ async function saveQuestionsEdits() {
             const expectedAnswer = item.querySelector('.expected-answer-input').value;
             
             const response = await fetch(
-                `${API_BASE_URL}/groups/${currentSettingsGroupId}/questions/${questionId}`,
+                `${API_BASE_URL}/teacher/questions/${questionId}`,
                 {
                     method: 'PUT',
                     headers: {
@@ -253,6 +252,92 @@ async function saveQuestionsEdits() {
     } finally {
         saveBtn.textContent = 'Сохранить изменения';
         saveBtn.disabled = false;
+    }
+}
+
+function handleLectureFilesSelected(e) {
+    const list = document.getElementById('settingsLectureFilesList');
+    list.innerHTML = '';
+    Array.from(e.target.files).forEach(file => {
+        const tag = document.createElement('div');
+        tag.className = 'file-tag';
+        tag.textContent = `📄 ${file.name}`;
+        list.appendChild(tag);
+    });
+}
+
+async function uploadLecturesForGroup(groupId) {
+    const files = document.getElementById('settingsLectureFiles').files;
+    if (!files.length) return;
+    
+    const token = localStorage.getItem('token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    
+    for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${API_BASE_URL}/groups/${groupId}/upload-lecture`, {
+            method: 'POST',
+            headers,
+            body: formData
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(`Ошибка загрузки "${file.name}": ${err.detail || res.statusText}`);
+        }
+    }
+}
+
+async function createGroup() {
+    const name = document.getElementById('newGroupName').value.trim();
+    if (!name) {
+        alert('Укажите название или ключ группы');
+        return;
+    }
+    
+    const btn = document.getElementById('createGroupBtn');
+    btn.disabled = true;
+    btn.textContent = 'Создание...';
+    
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/groups`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name,
+                questions_count: 25,
+                exam_duration_seconds: 5400,
+                use_auto_generation: true
+            })
+        });
+        
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || 'Ошибка создания группы');
+        }
+        
+        const group = await response.json();
+        allGroups.push(group);
+        
+        const select = document.getElementById('settingsGroupSelect');
+        const option = document.createElement('option');
+        option.value = group.id;
+        option.textContent = group.name;
+        select.appendChild(option);
+        select.value = group.id;
+        loadGroupSettings();
+        
+        document.getElementById('newGroupName').value = '';
+        alert(`Группа "${group.name}" создана. Ключ доступа: ${group.access_key}`);
+    } catch (error) {
+        alert('Ошибка: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Создать группу';
     }
 }
 
@@ -435,7 +520,7 @@ function viewStudentAnswers(studentId, grading = false) {
                 </div>
                <div class="answer-comment-edit">
                 <label>Комментарий:</label>
-                <textarea class="comment-input" data-answer-id="${ans.id}" rows="4">${escapeHtml(comment)}</textarea>
+                <textarea class="comment-input" data-answer-id="${ans.id}" rows="6">${escapeHtml(comment)}</textarea>
                </div>`
             : `<div class="answer-score">Оценка: ${score} / 100</div>`;
         
