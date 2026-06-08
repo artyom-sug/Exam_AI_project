@@ -17,9 +17,8 @@ class LLMService:
         """Обнаружение попыток промпт-инъекций в ответе студента."""
         text_lower = text.lower()
         
-        # Паттерны на русском и английском (на всякий случай)
+        
         injection_patterns = [
-            # Игнорирование инструкций
             r'игнорируй\s*(предыдущие\s*)?инструкции',
             r'игнорируй\s*все\s*предыдущие',
             r'забудь\s*(все\s*)?предыдущие\s*инструкции',
@@ -32,7 +31,7 @@ class LLMService:
             r'ignore\s+all\s+previous',
             r'forget\s+previous\s+instructions',
             
-            # Смена роли
+            
             r'ты\s*теперь\s*.*экзаменатор',
             r'твоя\s*новая\s*роль',
             r'ты\s*больше\s*не\s*экзаменатор',
@@ -55,7 +54,7 @@ class LLMService:
             r'give\s+me\s+(\d{2,3})\s+points',
             r'score\s+me\s+(\d{2,3})',
             
-            # Обход / манипуляция контекстом
+            
             r'[\[\(<{]система[\]\)>}]',
             r'[\[\(<{](?:system|assistant|user|role)[\]\)>}]',
             r'<\|.*?\|>',
@@ -67,7 +66,7 @@ class LLMService:
             r'обход\s*ограничений',
             r'\(override\)',
             
-            # Маркеры инъекций
+            
             r'токен\s*разделитель',
             r'начало\s*нового\s*контекста',
             r'сброс\s*контекста',
@@ -80,7 +79,7 @@ class LLMService:
                 logger.warning(f"Обнаружена попытка промпт-инъекции: паттерн '{pattern}' в ответе")
                 return True
         
-        # Дополнительно: проверка на очень длинные мета-команды
+        
         suspicious_phrases = [
             "игнорируй", "забудь", "не следуй", "отмени",
             "ты теперь", "твоя новая роль", "представь что ты",
@@ -88,7 +87,7 @@ class LLMService:
             "система", "приоритет выше", "переопредели"
         ]
         
-        # Если найдено несколько подозрительных фраз в одном ответе
+        
         found_count = sum(1 for phrase in suspicious_phrases if phrase in text_lower)
         if found_count >= 3:
             logger.warning(f"Обнаружено множество подозрительных фраз ({found_count}) в ответе")
@@ -97,15 +96,14 @@ class LLMService:
         return False
     
     def _sanitize_answer(self, answer: str) -> str:
-        """Базовая очистка ответа (без агрессивной фильтрации)."""
         if len(answer) > 2000:
             answer = answer[:2000]
         
-        # Удаляем явно опасные последовательности (не затрагивая смысл)
+        
         dangerous_patterns = [
-            (r'```.*?```', ''),           # убираем блоки кода
-            (r'`.*?`', ''),               # убираем инлайн-код
-            (r'\\', ' '),                 # экранирование
+            (r'```.*?```', ''),           
+            (r'`.*?`', ''),               
+            (r'\\', ' '),                 
             (r'DROP\s+TABLE', '[FILTERED]'),
             (r'DELETE\s+FROM', '[FILTERED]'),
             (r'UNION\s+SELECT', '[FILTERED]'),
@@ -115,22 +113,17 @@ class LLMService:
         for pattern, repl in dangerous_patterns:
             answer = re.sub(pattern, repl, answer, flags=re.IGNORECASE)
         
-        # Замена переносов строк на пробелы
+        
         answer = answer.replace('\n', ' ').replace('\r', ' ')
         
         return answer.strip()
     
     def _create_safe_prompt(self, base_prompt: str, user_answer: str) -> str:
-        """Создание защищённого промпта с явным разделением ответа студента."""
-        
-        # Сначала проверяем на инъекции
         has_injection = self._detect_prompt_injection(user_answer)
         
-        # Очищаем ответ
         safe_answer = self._sanitize_answer(user_answer)
         
         if has_injection:
-            # Ответ с инъекцией — помечаем как недопустимый
             safe_prompt = f"""
 {base_prompt}
 
@@ -156,7 +149,6 @@ class LLMService:
 Ты должен строго следовать этому правилу.
 """
         else:
-            # Обычный безопасный промпт
             safe_prompt = f"""
 {base_prompt}
 
@@ -235,7 +227,6 @@ class LLMService:
             else:
                 score = 0
             
-            # Если ответ LLM содержит указание на инъекцию, но мы её не поймали ранее
             if re.search(r'обнаружен(?:а|о)?\s*попытк[ау]|промпт-инъекц', response, re.IGNORECASE):
                 score = 0
                 comment = "Обнаружена попытка манипуляции. За вопрос выставлено 0 баллов."

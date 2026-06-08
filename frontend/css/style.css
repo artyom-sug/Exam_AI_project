@@ -10,6 +10,7 @@ body {
     min-height: 100vh;
     display: flex;
     align-items: center;
+    flex-direction: column;
     justify-content: center;
     padding: 20px;
 }
@@ -17,6 +18,7 @@ body {
 .container {
     background: white;
     border-radius: 20px;
+    margin-bottom: 0;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
     width: 100%;
     max-width: 900px;
@@ -273,3 +275,22 @@ input:focus {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+.developer-credit {
+    text-align: center;
+    font-size: 11px;
+    color: rgba(91, 91, 91, 0.4);
+    padding: 15px 20px;
+    font-family: 'Poppins', sans-serif;
+    width: 100%;
+    background: transparent;
+    position: relative;
+    margin-top: 20px;
+}
+
+.developer-credit a {
+    color: rgba(91, 91, 91, 0.5);
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
