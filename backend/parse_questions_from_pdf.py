@@ -36,50 +36,30 @@ class QuestionParserWithAI:
         
         return ""
     
-    def generate_answer_with_llm(self, question: str, context: str = "", retry_count: int = 2) -> str:
-        """Генерирует эталонный ответ через Ollama с повторными попытками"""
-        
-        if context:
-            prompt = f"""
-Ты - эксперт в области образования. Используя ТОЛЬКО материал лекций ниже, 
-составь правильный эталонный ответ на вопрос.
-
-МАТЕРИАЛ ЛЕКЦИЙ:
-{context[:2500]}
-
-ВОПРОС: {question}
-
-ЭТАЛОННЫЙ ОТВЕТ (кратко):
-"""
-        else:
-            prompt = f"""
-Ты - эксперт в области образования. Составь подробный, правильный и полный 
-эталонный ответ на вопрос.
-
-ВОПРОС: {question}
-
-ЭТАЛОННЫЙ ОТВЕТ (кратко):
-"""
-        
+    def generate_answer_with_llm(self, question: str, context: str = "", retry_count: int = 3) -> str:
+        """Генерирует эталонный ответ через Ollama с повторными попытками."""
         for attempt in range(retry_count):
             try:
-                print(f"Вызов Ollama (попытка {attempt + 1})...")
-                response = llm_service.generate(prompt, temperature=0.5)
-                
-                if response and "Ответ не сгенерирован" not in response and len(response) > 20:
-                    response = response.strip()
-                    response = re.sub(r'^ЭТАЛОННЫЙ ОТВЕТ:\s*', '', response, flags=re.IGNORECASE)
+                print(f"Вызов Ollama (попытка {attempt + 1}/{retry_count})...")
+                if not llm_service.ensure_model_available():
+                    print("Модель Ollama недоступна, ожидание...")
+                    time.sleep(5)
+                    continue
+
+                response = llm_service.generate_reference_answer(question, context)
+
+                if response and len(response) > 20:
                     print(f"Ответ получен ({len(response)} символов)")
                     return response
-                else:
-                    print(f"Пустой ответ, повторная попытка...")
-                    
+                print("Пустой ответ, повторная попытка...")
             except Exception as e:
                 print(f"Ошибка: {e}")
-                if attempt < retry_count - 1:
-                    print(f"Повтор через 3 секунды...")
-                    time.sleep(3)
-        
+
+            if attempt < retry_count - 1:
+                wait = 3 * (attempt + 1)
+                print(f"Повтор через {wait} секунд...")
+                time.sleep(wait)
+
         return "Ответ не сгенерирован. Пожалуйста, добавьте вручную."
     
     def parse_with_ollama(self, pdf_path: Path, generate_answers: bool = True) -> List[Dict]:
@@ -204,19 +184,17 @@ def main():
     print("=" * 60)
     
     print("\nПроверка подключения к Ollama...")
-    try:
-        import requests
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
-        if response.status_code == 200:
-            print("Ollama работает!")
-        else:
-            print("Ollama отвечает, но с ошибкой")
-    except Exception as e:
-        print(f"Ollama НЕ ДОСТУПЕН! Ошибка: {e}")
-        print("\nЗапустите Ollama в отдельном терминале:")
-        print("ollama serve")
-        print("\nИЛИ используйте ручной ввод ответов")
+    if not llm_service.check_ollama_available():
+        print("Ollama НЕ ДОСТУПЕН!")
+        print("Запустите: ollama serve")
+        print("И убедитесь, что модель загружена: ollama pull qwen2.5:3b")
         return
+    print("Ollama работает!")
+
+    if not llm_service.ensure_model_available():
+        print(f"Модель {llm_service.model} недоступна. Выполните: ollama pull {llm_service.model}")
+        return
+    print(f"Модель {llm_service.model} готова к работе")
     
     questions_folder = Path("uploads/questions")
     

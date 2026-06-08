@@ -117,6 +117,7 @@ class QuestionBankUploadResponse(BaseModel):
 class AnswerScoreUpdate(BaseModel):
     score: Optional[float] = None
     comment: Optional[str] = None
+    recalculate_total: Optional[bool] = None
 
 class StudentTotalScoreUpdate(BaseModel):
     total_score: float

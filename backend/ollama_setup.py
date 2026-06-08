@@ -25,7 +25,7 @@ def test_model_response(model="qwen2.5:3b"):
             "model": model,
             "prompt": prompt,
             "stream": False,
-            "temperature": 0.7
+            "options": {"temperature": 0.7, "num_predict": 100},
         },
         timeout=30
     )
@@ -48,8 +48,7 @@ def test_generation_speed(model="qwen2.5:3b"):
             "model": model,
             "prompt": prompt,
             "stream": False,
-            "temperature": 0.5,
-            "max_tokens": 100
+            "options": {"temperature": 0.5, "num_predict": 100},
         },
         timeout=60
     )

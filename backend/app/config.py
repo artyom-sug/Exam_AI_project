@@ -22,3 +22,10 @@ DEFAULT_QUESTIONS_COUNT = 5
 DEFAULT_TIME_PER_QUESTION = 5400
 
 EMBEDDING_MODEL = "cointegrated/LaBSE-en-ru"
+
+LOGS_DIR = BASE_DIR / "logs"
+AI_LOG_FILE = LOGS_DIR / "ai_exam_log.jsonl"
+SYSTEM_LOG_FILE = LOGS_DIR / "system.log"
+
+OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_TIMEOUT = 180

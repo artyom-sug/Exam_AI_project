@@ -18,6 +18,7 @@ htmlcov/
 .dmypy.json
 dmypy.json
 *.log
+backend/logs/
 
 # Database
 *.db

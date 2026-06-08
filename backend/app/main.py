@@ -11,6 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from .llm_service import llm_service
 from .embeddings_service import embeddings_service
+from .exam_logger import log_server_event
 from .pdf_parser import extract_text_from_pdf
 from .database import engine, get_db, Base, run_migrations
 from . import models, schemas, auth
@@ -97,6 +98,14 @@ Base.metadata.create_all(bind=engine)
 run_migrations()
 
 app = FastAPI(title="Exam System", version="0.1.0")
+
+@app.on_event("startup")
+async def on_startup():
+    log_server_event("started", host="127.0.0.1", port=8000)
+    if llm_service.check_ollama_available():
+        log_server_event("ollama_available", model=llm_service.model)
+    else:
+        log_server_event("ollama_unavailable", warning="Ollama не запущена")
 
 app.add_middleware(
     CORSMiddleware,
@@ -585,10 +594,15 @@ async def submit_exam(
                 question_text = sq.question_text
                 expected_answer = sq.expected_answer
         
+        ai_log_ctx = {
+            "session_id": session_id,
+            "student_fio": student.fio,
+            "question_number": i + 1,
+        }
         try:
             if expected_answer:
                 evaluation = llm_service.evaluate_answer_with_expected(
-                    question_text, answer, expected_answer
+                    question_text, answer, expected_answer, log_context=ai_log_ctx
                 )
             else:
                 relevant_chunks = embeddings_service.search_similar_chunks_for_teacher(
@@ -597,18 +611,19 @@ async def submit_exam(
                 
                 if relevant_chunks:
                     evaluation = llm_service.check_answer_with_rag(
-                        question_text, answer, relevant_chunks
+                        question_text, answer, relevant_chunks, log_context=ai_log_ctx
                     )
                 else:
                     lecture_text = get_teacher_lecture_text(db, group.teacher_id)
                     evaluation = llm_service.evaluate_answer(
-                        question_text, answer, lecture_text
+                        question_text, answer, lecture_text, log_context=ai_log_ctx
                     )
         except Exception as e:
             logger.error(f"Evaluation error for question {i+1}: {e}")
+            log_server_event("evaluation_error", question=i + 1, error=str(e))
             evaluation = {
-                "score": 70.0,
-                "comment": "Ответ принят и засчитан. Автоматическая детальная оценка временно недоступна."
+                "score": 0.0,
+                "comment": "Автоматическая оценка недоступна. Требуется ручная проверка преподавателем."
             }
         
         score = evaluation["score"]
@@ -1019,25 +1034,38 @@ async def update_answer_score(
         answer.score = min(100, max(0, update_data.score))
     if update_data.comment is not None:
         answer.comment = update_data.comment
-    
+
+    student = db.query(models.Student).filter(
+        models.Student.id == answer.student_id
+    ).first()
+
+    recalculate_total = update_data.recalculate_total
+    if recalculate_total is None:
+        recalculate_total = update_data.score is not None
+
+    if student and recalculate_total and update_data.score is not None:
+        student.manual_total_score = None
+
     db.commit()
     db.refresh(answer)
     
     student_answers = db.query(models.Answer).filter(
         models.Answer.student_id == answer.student_id
     ).all()
-    total_score = sum(a.score or 0 for a in student_answers) / len(student_answers) if student_answers else 0
+    avg_score = sum(a.score or 0 for a in student_answers) / len(student_answers) if student_answers else 0
     
-    student = db.query(models.Student).filter(
-        models.Student.id == answer.student_id
-    ).first()
-    display_total = student.manual_total_score if student and student.manual_total_score is not None else round(total_score, 1)
+    if student and student.manual_total_score is not None:
+        display_total = round(student.manual_total_score, 1)
+    else:
+        display_total = round(avg_score, 1)
     
     return {
         "answer_id": answer.id,
         "score": answer.score,
         "comment": answer.comment,
-        "student_total_score": display_total
+        "student_total_score": display_total,
+        "calculated_average": round(avg_score, 1),
+        "manual_override": student.manual_total_score is not None if student else False,
     }
 
 @app.put("/api/groups/{group_id}/students/{student_id}/total-score")

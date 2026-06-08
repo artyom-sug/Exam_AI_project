@@ -4,6 +4,7 @@ let currentGroupResults = [];
 let allResults = [];
 let currentStudentId = null;
 let isGradingMode = false;
+let originalTotalScore = null;
 let allGroups = [];
 let currentSettingsGroupId = null;
 let questionsToEdit = [];
@@ -398,6 +399,7 @@ function viewStudentAnswers(studentId, grading = false) {
     
     currentStudentId = studentId;
     isGradingMode = grading;
+    originalTotalScore = student.score;
     
     document.getElementById('studentAnswersName').textContent = student.name;
     document.getElementById('studentAnswersScore').textContent = 
@@ -453,8 +455,29 @@ function viewStudentAnswers(studentId, grading = false) {
     
     const saveBtn = document.getElementById('saveGradesBtn');
     if (saveBtn) saveBtn.style.display = grading ? 'inline-block' : 'none';
+
+    if (grading) {
+        document.querySelectorAll('.score-input').forEach(input => {
+            input.addEventListener('input', updateCalculatedTotal);
+        });
+    }
     
     openModal('studentAnswersModal');
+}
+
+function calculateAverageFromInputs() {
+    const scoreInputs = document.querySelectorAll('.score-input');
+    if (!scoreInputs.length) return 0;
+    let sum = 0;
+    scoreInputs.forEach(input => { sum += parseFloat(input.value) || 0; });
+    return sum / scoreInputs.length;
+}
+
+function updateCalculatedTotal() {
+    const totalInput = document.getElementById('totalScoreInput');
+    if (!totalInput) return;
+    const avg = calculateAverageFromInputs();
+    totalInput.value = avg.toFixed(1);
 }
 
 function gradeStudent(studentId) {
@@ -476,6 +499,7 @@ async function saveGrades() {
     
     try {
         let newTotal = null;
+        const calculatedAvg = calculateAverageFromInputs();
         
         for (const input of scoreInputs) {
             const answerId = input.dataset.answerId;
@@ -483,9 +507,8 @@ async function saveGrades() {
             const commentEl = document.querySelector(`.comment-input[data-answer-id="${answerId}"]`);
             const comment = commentEl ? commentEl.value : undefined;
             
-            const body = { score };
+            const body = { score, recalculate_total: true };
             if (comment !== undefined) body.comment = comment;
-            
             
             const response = await fetch(`${API_BASE_URL}/groups/${groupId}/answers/${answerId}`, {
                 method: 'PUT',
@@ -497,10 +520,16 @@ async function saveGrades() {
             });
             
             if (!response.ok) throw new Error('Ошибка сохранения оценки');
+            const result = await response.json();
+            newTotal = result.student_total_score;
         }
 
-        if (totalScoreInput) {
-            const totalScore = parseFloat(totalScoreInput.value);
+        const totalScore = totalScoreInput ? parseFloat(totalScoreInput.value) : calculatedAvg;
+        const teacherOverrodeTotal = totalScoreInput &&
+            Math.abs(totalScore - calculatedAvg) > 0.05 &&
+            Math.abs(totalScore - (originalTotalScore ?? calculatedAvg)) > 0.05;
+
+        if (teacherOverrodeTotal) {
             const totalResponse = await fetch(
                 `${API_BASE_URL}/groups/${groupId}/students/${currentStudentId}/total-score`,
                 {
@@ -519,9 +548,11 @@ async function saveGrades() {
 
         const student = allResults.find(s => s.id === currentStudentId);
         if (student) {
-            if (newTotal !== null) {
-                student.score = newTotal;
+            student.score = newTotal ?? calculatedAvg;
+            if (teacherOverrodeTotal) {
                 student.manual_total_score = newTotal;
+            } else {
+                student.manual_total_score = null;
             }
             scoreInputs.forEach(input => {
                 const ans = student.answers.find(a => String(a.id) === input.dataset.answerId);
@@ -534,7 +565,7 @@ async function saveGrades() {
         }
         
         document.getElementById('studentAnswersScore').textContent = 
-            `Балл: ${newTotal ?? student?.score} / 100 · Ответил на вопросов: ${student?.answered || 0} / ${student?.total || 0}`;
+            `Балл: ${newTotal ?? calculatedAvg} / 100 · Ответил на вопросов: ${student?.answered || 0} / ${student?.total || 0}`;
         
         renderResultsTable(currentGroupResults);
         updateStats(currentGroupResults);

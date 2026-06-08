@@ -10,9 +10,10 @@ def test_generate_questions():
     """
     
     print("Генерация вопросов...")
-    questions = llm_service.generate_questions(context, 3)
+    chunks = [{"text": context, "filename": "test"}]
+    questions = llm_service.generate_questions_from_lectures(chunks, 3)
     for i, q in enumerate(questions, 1):
-        print(f"{i}. {q}")
+        print(f"{i}. {q.get('question', q)}")
     print()
 
 def test_evaluate_answer():
