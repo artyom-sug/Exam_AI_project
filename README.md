@@ -178,7 +178,7 @@ python parse_questions_begin.py
 ```bash
 python load_questions.py --json questions_parsed.json
 ```
-
+ 
 Альтернатива — парсинг с генерацией ответов через Ollama (дольше):
 ```bash
 python parse_questions_from_pdf.py
